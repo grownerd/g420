@@ -1,0 +1,45 @@
+
+pwm outputs: 12V mosfet, pulldown, LED
+  fill pump // PE9
+  drain pump // PE14
+  coolant pump // PB4
+  sewage pump // PB5
+  dehumi pump // PC8
+  phdown pump // PC9
+  nut1 pump // PB8
+  nut2 pump // PE5
+  nut3 pump // PE6
+
+
+irq inputs, 100k pullups
+  GPIOA, GPIO_PIN_0 // Blue Discovery Button
+  GPIOD, GPIO_PIN_1 // Res min
+  GPIOE, GPIO_PIN_2 // Res max
+  GPIOD, GPIO_PIN_3 // Res Alarm
+  GPIOE, GPIO_PIN_4
+  GPIOC, GPIO_PIN_5
+  GPIOC, GPIO_PIN_6
+  GPIOE, GPIO_PIN_7
+  GPIOE, GPIO_PIN_8
+  
+  GPIOE, GPIO_PIN_10 // sewage tank full
+  GPIOE, GPIO_PIN_11 // sewage tank empty
+  GPIOE, GPIO_PIN_12
+  GPIOE, GPIO_PIN_13
+  
+  GPIOE, GPIO_PIN_15
+
+
+gpio:
+  PD8 // EC Pulse
+  PD9 // Relay light
+  PD10 // Relay Exhaust
+  PD11 // Relay aux
+
+pwm in: %V out, voltage divider in 22k/33k
+  PA15 // res drain flow
+  PA1
+
+adc in:
+  PB0 // EC (resistor R1 to PD8, +GND)
+  PB1 // pH voltage divider from 5V 22k/33k
