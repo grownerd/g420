@@ -23,9 +23,11 @@ MCFLAGS = -mcpu=$(MCU) -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=har
 STM32_INCLUDES = -I$(LIBPATH)/Libraries/CMSIS/Device/ST/STM32F4xx/Include/ \
 	-I$(LIBPATH)/Libraries/CMSIS/Include/ \
 	-I$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/inc/ \
+	-I./drivers/STM32F4xx_HAL_Driver/Inc/ \
 	-I./drivers/BME280_driver/ \
 	-I./drivers/tm/ \
 	-I./inc/
+
 
 OPTIMIZE       = -Og
 
@@ -34,8 +36,11 @@ AFLAGS	= $(MCFLAGS)
 #-mapcs-float use float regs. small increase in code size
 
 SRC = ./src/main.c \
+	./src/flash.c \
 	./src/i2c.c \
 	./src/rtc.c \
+	./src/gpio.c \
+	./src/adc.c \
 	./src/onewire.c \
 	./src/command_parser.c \
 	./src/system_stm32f4xx.c \
@@ -51,6 +56,9 @@ SRC = ./src/main.c \
 	./drivers/tm/tm_stm32f4_gpio.c \
 	./drivers/tm/tm_stm32f4_onewire.c \
 	./drivers/tm/tm_stm32f4_timer_properties.c \
+	./drivers/tm/tm_stm32f4_pwm.c \
+	./drivers/tm/tm_stm32f4_pwmin.c \
+	./drivers/tm/tm_stm32f4_exti.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/misc.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_adc.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_can.c \

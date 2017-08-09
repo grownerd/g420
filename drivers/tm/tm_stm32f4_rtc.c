@@ -163,6 +163,9 @@ TM_RTC_Result_t TM_RTC_SetDateTime(TM_RTC_t* data, TM_RTC_Format_t format) {
 		tmp.seconds = data->seconds;
 		tmp.day = data->day;
 	}
+
+  if (tmp.day == 0)
+    tmp.day = 7;
 	
 	/* Check year and month */
 	if (
@@ -313,7 +316,7 @@ void TM_RTC_GetDateTime(TM_RTC_t* data, TM_RTC_Format_t format) {
 	data->year = RTC_DateStruct.RTC_Year;
 	data->month = RTC_DateStruct.RTC_Month;
 	data->date = RTC_DateStruct.RTC_Date;
-	data->day = RTC_DateStruct.RTC_WeekDay;
+  data->day = RTC_DateStruct.RTC_WeekDay;
 	
 	/* Calculate unix offset */
 	unix = TM_RTC_GetUnixTimeStamp(data);
@@ -342,13 +345,13 @@ uint16_t TM_RTC_GetDaysInYear(uint8_t year) {
 void TM_RTC_Config(TM_RTC_ClockSource_t source) {
 	if (source == TM_RTC_ClockSource_Internal) {
 		/* Enable the LSI OSC */
-		RCC_LSICmd(ENABLE);
+		RCC_HSEConfig(RCC_HSE_ON);
 
 		/* Wait till LSI is ready */
-		while (RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == RESET);
+		while (RCC_GetFlagStatus(RCC_FLAG_HSERDY) == RESET);
 
 		/* Select the RTC Clock Source */
-		RCC_RTCCLKConfig(RCC_RTCCLKSource_LSI);
+		RCC_RTCCLKConfig(RCC_RTCCLKSource_HSE_Div8);
 	} else if (source == TM_RTC_ClockSource_External) {
 		/* Enable the LSE OSC */
 		RCC_LSEConfig(RCC_LSE_ON);

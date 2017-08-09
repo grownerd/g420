@@ -2,6 +2,13 @@
 #include <stm32f4xx_i2c.h>
 #include "i2c.h"
 
+#define	I2C_BUFFER_LEN 8
+
+extern uint8_t capsense_chb;
+extern uint8_t capsense_capdac;
+extern uint16_t capsense_offset;
+extern uint16_t capsense_gain;
+
 void init_I2C1(void) {
     GPIO_InitTypeDef GPIO_InitStruct;
     I2C_InitTypeDef I2C_InitStruct;
@@ -19,7 +26,7 @@ void init_I2C1(void) {
     GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_I2C1);
     GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_I2C1);
     
-    I2C_InitStruct.I2C_ClockSpeed = 100000;
+    I2C_InitStruct.I2C_ClockSpeed = 10000;
     I2C_InitStruct.I2C_Mode = I2C_Mode_I2C;
     I2C_InitStruct.I2C_DutyCycle = I2C_DutyCycle_2;
     I2C_InitStruct.I2C_OwnAddress1 = 0x00;
@@ -112,4 +119,115 @@ uint8_t I2C_read_nack(I2C_TypeDef* I2Cx) {
 void I2C_stop(I2C_TypeDef* I2Cx) {
     // Send I2C1 STOP Condition 
     I2C_GenerateSTOP(I2Cx, ENABLE);
+}
+
+
+uint8_t i2c_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+{
+	s32 iError = 0;
+	u8 array[I2C_BUFFER_LEN] = {0};
+	u8 stringpos = 0;
+	array[0] = reg_addr;
+
+  I2C_start(I2C1, (dev_addr << 1), I2C_Direction_Transmitter);
+  I2C_write(I2C1, reg_addr);
+  I2C_stop(I2C1);
+  I2C_start(I2C1, (dev_addr << 1), I2C_Direction_Receiver);
+
+	for (stringpos = 0; stringpos < cnt - 1; stringpos++) {
+    array[stringpos] = I2C_read_ack(I2C1);
+  }
+  array[stringpos] = I2C_read_nack(I2C1);
+
+	for (stringpos = 0; stringpos < cnt; stringpos++) {
+		*(reg_data + stringpos) = array[stringpos];
+	}
+	return (s8)iError;
+}
+
+
+uint8_t i2c_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+{
+	s32 iError = 0;
+	u8 array[I2C_BUFFER_LEN];
+	u8 stringpos = 0;
+	array[0] = *reg_data;
+
+
+	for (stringpos = 0; stringpos < cnt; stringpos++) {
+		array[stringpos + 1] = *(reg_data + stringpos);
+	}
+
+  I2C_start(I2C1, (dev_addr << 1), I2C_Direction_Transmitter);
+  I2C_write(I2C1, reg_addr);
+
+	for (stringpos = 0; stringpos < cnt; stringpos++) {
+    I2C_write(I2C1, array[stringpos]);
+  }
+  I2C_stop(I2C1);
+
+	return (s8)iError;
+}
+
+
+uint16_t i2c_read16(u8 dev_addr, u8 reg_addr) {
+	u16 reg_data = 0;
+
+  I2C_start(I2C1, (dev_addr << 1), I2C_Direction_Transmitter);
+  I2C_write(I2C1, reg_addr);
+  I2C_stop(I2C1);
+  I2C_start(I2C1, (dev_addr << 1), I2C_Direction_Receiver);
+
+  reg_data = I2C_read_ack(I2C1);
+  reg_data <<= 8;
+  reg_data |= I2C_read_nack(I2C1);
+
+	return reg_data;
+}
+
+void i2c_write16(u8 dev_addr, u8 reg_addr, u16 data) {
+  I2C_start(I2C1, (dev_addr << 1), I2C_Direction_Transmitter);
+  I2C_write(I2C1, reg_addr);
+
+  I2C_write(I2C1, (uint8_t) data >> 8);
+  I2C_write(I2C1, (uint8_t) data);
+  I2C_stop(I2C1);
+
+}
+
+uint8_t fdc1004_init(void){
+  if (i2c_read16(0x50, 0xfe) == 0x5449 && i2c_read16(0x50, 0xff) == 0x1004){
+    i2c_write16(0x50, 0x0c, (uint16_t)(0x01 << 15));
+    return 1;
+  }else{
+    return 0;
+  }
+}
+
+uint32_t fdc_read_channel(uint8_t cha, uint8_t chb, uint8_t capdac, uint16_t offset, uint16_t gain){
+  uint16_t conf_reg = i2c_read16(0x50, 0x0c);
+
+  // set Measurement Configuration Register: CHA = cha, CHB = CAPDAC, no offset
+  i2c_write16(0x50, 0x08 + cha, (uint16_t)(cha << 13 | chb << 10 | capdac << 5));
+  i2c_write16(0x50, 0x0d + cha, offset);
+  //i2c_write16(0x50, 0x11 + cha, gain);
+
+  i2c_write16(0x50, 0x0c, (uint16_t)(0x01 << 10 | 0x00 << 8 | 1 << (7 - cha)));
+
+  while (!conf_reg & (1 << (3 - cha))){
+    conf_reg = i2c_read16(0x50, 0x0c);
+  }
+
+  uint16_t msb = i2c_read16(0x50, cha * 2);
+  uint16_t lsb = i2c_read16(0x50, (cha * 2) + 1);
+
+  return (uint32_t) ((msb << 16) | lsb) >> 8;
+  
+}
+
+void fdc1004_read(uint32_t * raw){
+  uint8_t i;
+  for (i=0; i<2; i++) {
+    raw[i] = fdc_read_channel(i, capsense_chb, capsense_capdac, capsense_offset, capsense_gain);
+  }
 }

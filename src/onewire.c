@@ -7,13 +7,19 @@
 #include <stm32f4xx_gpio.h>
 
 #include "defines.h"
+#include "tm_stm32f4_rtc.h"
 #include "tm_stm32f4_delay.h"
 #include "tm_stm32f4_onewire.h"
 #include "tm_stm32f4_usart.h"
 #include "tm_stm32f4_ds18b20.h"
 #include "tm_stm32f4_disco.h"
-#include <stdio.h>
+#include "tm_stm32f4_watchdog.h"
+#include "tm_stm32f4_pwm.h"
+#include "tm_stm32f4_pwmin.h"
+#include "tm_stm32f4_exti.h"
  
+#include "gpio.h"
+#include "main.h"
 #include "onewire.h"
 
 
@@ -26,7 +32,6 @@ uint8_t alarm_device[DS18B20_NUM_DEVICES][8];
 /* OneWire working struct */
 TM_OneWire_t OneWire1;
 
-float temps[DS18B20_NUM_DEVICES];
 
 
 void onewire_init(void) {
@@ -72,15 +77,16 @@ void onewire_init(void) {
     }
     
     /* Set high temperature alarm on device number 0, 25 degrees celcius */
-    TM_DS18B20_SetAlarmHighTemperature(&OneWire1, device[0], 25);
+    //TM_DS18B20_SetAlarmHighTemperature(&OneWire1, device[0], 25);
     
     /* Disable alarm temperatures on device number 1 */
+    TM_DS18B20_DisableAlarmTemperature(&OneWire1, device[0]);
     TM_DS18B20_DisableAlarmTemperature(&OneWire1, device[1]);
 
 }
     
 
-void ds18b20_read_temp(void) {
+void ds18b20_read_temp() {
 
     /* Start temperature conversion on all devices on one bus */
     TM_DS18B20_StartAll(&OneWire1);
@@ -90,19 +96,16 @@ void ds18b20_read_temp(void) {
     
     /* Read temperature from each device separatelly */
     for (i = 0; i < count; i++) {
-        /* Read temperature from ROM address and store it to temps variable */
-        if (TM_DS18B20_Read(&OneWire1, device[i], &temps[i])) {
-            /* Print temperature */
-            sprintf(buf, "Temp %d: %3.5f; \r\n", i, temps[i]);
-            TM_USART_Puts(USART2, buf);
-        } else {
-            /* Reading error */
-            TM_USART_Puts(USART2, "Reading error;\r\n");
+        /* Read temperature from ROM address and store it to sensor struct */
+
+        if (!TM_DS18B20_Read(&OneWire1, device[i], &ds18b20_sensors[i].value)) {
+          ds18b20_sensors[i].error_count++;
         }
     }
     
     /* Reset alarm count */
     alarm_count = 0;
+#if 0
     
     /* Check if any device has alarm flag set */
     while (TM_DS18B20_AlarmSearch(&OneWire1)) {
@@ -112,9 +115,10 @@ void ds18b20_read_temp(void) {
         alarm_count++;
     }
     
-    /* Format string and send over USART for debug */
-    sprintf(buf, "Devices with alarm: %d\r\n", alarm_count);
-    TM_USART_Puts(USART2, buf);
+    if (alarm_count > 0) {
+      sprintf(buf, "Devices with alarm: %d\r\n", alarm_count);
+      TM_USART_Puts(USART2, buf);
+    }
     
     /* Any device has alarm flag set? */
     if (alarm_count > 0) {
@@ -130,7 +134,8 @@ void ds18b20_read_temp(void) {
         TM_USART_Puts(USART2, "ALARM devices recognized!\r\n\r");
     }
     
+#endif
     /* Print separator */
-    TM_USART_Puts(USART2, "----------\r\n");
+    //TM_USART_Puts(USART2, "----------\r\n");
     
 }

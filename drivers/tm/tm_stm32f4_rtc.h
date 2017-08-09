@@ -28,7 +28,7 @@
 @endverbatim
  */
 #ifndef TM_RTC_H
-#define TM_RTC_H 171
+#define TM_RTC_H
 
 /* C++ detection */
 #ifdef __cplusplus
@@ -160,11 +160,11 @@ extern "C" {
 /* RTC clock is: f_clk = RTCCLK(LSI or LSE) / ((RTC_SYNC_PREDIV + 1) * (RTC_ASYNC_PREDIV + 1)) */
 /* Sync pre division for clock */
 #ifndef RTC_SYNC_PREDIV
-#define RTC_SYNC_PREDIV					0x3FF
+#define RTC_SYNC_PREDIV					7999
 #endif
 /* Async pre division for clock */
 #ifndef RTC_ASYNC_PREDIV
-#define RTC_ASYNC_PREDIV				0x1F
+#define RTC_ASYNC_PREDIV				124
 #endif
 /* NVIC global Priority set */
 #ifndef RTC_PRIORITY

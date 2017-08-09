@@ -14,10 +14,23 @@
 #include "tm_stm32f4_ds18b20.h"
 #include "tm_stm32f4_disco.h"
 #include "tm_stm32f4_watchdog.h"
+#include "tm_stm32f4_pwm.h"
+#include "tm_stm32f4_pwmin.h"
+#include "tm_stm32f4_exti.h"
+#include "tm_stm32f4_adc.h"
+ 
+#include "bme280.h"
+#include "gpio.h"
+#include "adc.h"
+#include "main.h"
+#include "i2c.h"
+#include "onewire.h"
 #include "rtc.h"
+#include "command_parser.h"
+#include "flash.h"
 
+uint16_t rtc_subfs;
 char buf[50];
-TM_RTC_Time_t datatime;
 TM_RTC_Time_t Time;
 
 void set_time(char * timestring) {
@@ -26,7 +39,6 @@ void set_time(char * timestring) {
   } else {
     TM_USART_Puts(USART2, "Time set Error\r\n");
   }
-
 }
 
 
@@ -44,19 +56,36 @@ void set_alarm(TM_RTC_Alarm_t alarm, uint8_t hours, uint8_t minutes) {
 
 }
 
+void update_datestring(void) {
+    /* Get time */
+    TM_RTC_GetDateTime(&Time, TM_RTC_Format_BIN);
+    
+    /* Format time */
+    sprintf(global_state.datestring, "%02d.%02d.%04d %02d:%02d:%02d",
+                Time.date,
+                Time.month,
+                Time.year + 2000,
+                Time.hours,
+                Time.minutes,
+                Time.seconds
+    );
+    
+  
+}
 
 void print_time(void) {
     /* Get time */
     TM_RTC_GetDateTime(&Time, TM_RTC_Format_BIN);
     
     /* Format time */
-    sprintf(buf, "%02d.%02d.%04d %02d:%02d:%02d  Unix: %u\r\n",
+    sprintf(buf, "{\"name\":\"datetime\",\"content\":{\"date\":\"%02d.%02d.%04d\", \"time\":\"%02d:%02d:%02d.%06d\", \"unix\":%u}}\r\n",
                 Time.date,
                 Time.month,
                 Time.year + 2000,
                 Time.hours,
                 Time.minutes,
                 Time.seconds,
+                Time.subseconds,
                 Time.unix
     );
     
@@ -66,7 +95,7 @@ void print_time(void) {
     
 
 void TM_RTC_RequestHandler() {
-    TM_DISCO_LedToggle(LED_BLUE | LED_ORANGE);
+  TM_DISCO_LedToggle(LED_BLUE | LED_ORANGE);
 }
  
 /* Custom request handler function */

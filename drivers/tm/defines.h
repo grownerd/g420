@@ -31,8 +31,8 @@
 /* Put your global defines for all libraries here used in your project */
 //Select custom timer for delay, here is TIM2 selected.
 //If you want custom TIMx, just replace number "2" for your TIM's number.
-#define TM_DELAY_TIM      TIM2
-#define TM_DELAY_TIM_IRQ    TIM2_IRQn
-#define TM_DELAY_TIM_IRQ_HANDLER  TIM2_IRQHandler
+//#define TM_DELAY_TIM      TIM2
+//#define TM_DELAY_TIM_IRQ    TIM2_IRQn
+//#define TM_DELAY_TIM_IRQ_HANDLER  TIM2_IRQHandler
 
 #endif
