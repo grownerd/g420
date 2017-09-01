@@ -1,5 +1,10 @@
-#include "stm32f4xx.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stm32f4xx.h>
+#include <stm32f4xx_i2c.h>
+#include <stm32f4xx_usart.h>
+#include <stm32f4xx_gpio.h>
 
 #include "defines.h"
 #include "tm_stm32f4_rtc.h"
@@ -12,12 +17,20 @@
 #include "tm_stm32f4_pwm.h"
 #include "tm_stm32f4_pwmin.h"
 #include "tm_stm32f4_exti.h"
-
+#include "tm_stm32f4_adc.h"
+ 
 #include "bme280.h"
 #include "gpio.h"
+#include "adc.h"
 #include "main.h"
+#include "i2c.h"
+#include "onewire.h"
+#include "rtc.h"
+#include "command_parser.h"
+#include "flash.h"
 
-__attribute__((__section__(".user_data"))) const uint8_t flash_data[2048] = {
+
+__attribute__((__section__(".user_data"))) uint8_t flash_data[FLASH_SIZE] = {
 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
@@ -150,6 +163,9 @@ __attribute__((__section__(".user_data"))) const uint8_t flash_data[2048] = {
 
 uint8_t flash_status;
 void save_data_to_flash() {
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
+
  
   flash_status = FLASH_COMPLETE;
  
@@ -203,33 +219,44 @@ void save_data_to_flash() {
     flash_status = FLASH_ProgramWord((uint32_t)address, (uint32_t)*(data_p+i));
     address += 4;
   }
+  
 
   if (flash_status != FLASH_COMPLETE) {
     FLASH_Lock();
     return;
   }
+  sprintf(buf, "{\"event\": \"Saved Data to Flash\", \"time\": \"%s\"}\r\n", global_state.datestring);
+  TM_USART_Puts(USART2, buf);
 }
 
 void read_flash(void){
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
+
   uint8_t* address = &flash_data[0];
  
-  memcpy(&light_timer, address, sizeof(light_timer));
-  address += sizeof(light_timer);
+  if (flash_data[0] == 0xff){
+    sprintf(buf, "{\"event\": \"Flash empty - Setting Defaults\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    set_defaults();
+  }else{
+    memcpy(&light_timer, address, sizeof(light_timer));
+    address += sizeof(light_timer);
 
-  memcpy(&exhaust_setpoints, address, sizeof(exhaust_setpoints));
-  address += sizeof(exhaust_setpoints);
+    memcpy(&exhaust_setpoints, address, sizeof(exhaust_setpoints));
+    address += sizeof(exhaust_setpoints);
 
-  memcpy(&coolant_setpoints, address, sizeof(coolant_setpoints));
-  address += sizeof(coolant_setpoints);
+    memcpy(&coolant_setpoints, address, sizeof(coolant_setpoints));
+    address += sizeof(coolant_setpoints);
 
-  memcpy(&ph_setpoints, address, sizeof(ph_setpoints));
-  address += sizeof(ph_setpoints);
+    memcpy(&ph_setpoints, address, sizeof(ph_setpoints));
+    address += sizeof(ph_setpoints);
 
-  memcpy(&nutrient_pumps, address, sizeof(nutrient_pumps));
-  address += sizeof(nutrient_pumps);
+    memcpy(&nutrient_pumps, address, sizeof(nutrient_pumps));
+    address += sizeof(nutrient_pumps);
 
-  memcpy(&misc_settings, address, sizeof(misc_settings));
-  address += sizeof(misc_settings);
-
-  
+    memcpy(&misc_settings, address, sizeof(misc_settings));
+    address += sizeof(misc_settings);
+    sprintf(buf, "{\"event\": \"Restored Data from Flash\", \"time\": \"%s\"}\r\n", global_state.datestring);
+  }
+  TM_USART_Puts(USART2, buf);
 }

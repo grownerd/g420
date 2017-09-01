@@ -15,6 +15,8 @@
  * PROTOTYPES
  */
 
+void i2c_bus_power_cycle();
+void i2c_bus_reset(void);
 void init_I2C1(void);
 void I2C_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction);
 void I2C_write(I2C_TypeDef* I2Cx, uint8_t data);
@@ -24,5 +26,7 @@ void I2C_stop(I2C_TypeDef* I2Cx);
 
 uint8_t fdc1004_init(void);
 void fdc1004_read(uint32_t * capsense_data);
+
+extern uint8_t i2c_errors;
 
 #endif

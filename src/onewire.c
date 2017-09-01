@@ -23,7 +23,7 @@
 #include "onewire.h"
 
 
-char buf[40];
+char buf[MAX_STR_LEN];
 uint8_t devices, i, j, count, alarm_count;
 uint8_t device[DS18B20_NUM_DEVICES][8];
 uint8_t alarm_device[DS18B20_NUM_DEVICES][8];
@@ -36,77 +36,90 @@ TM_OneWire_t OneWire1;
 
 void onewire_init(void) {
     
-    /* Initialize OneWire on pin PD0 */
-    TM_OneWire_Init(&OneWire1, GPIOD, GPIO_Pin_0);
-    
+  /* Initialize OneWire on pin PD0 */
+  TM_OneWire_Init(&OneWire1, GPIOD, GPIO_Pin_0);
+  
 
-    /* Checks for any device on 1-wire */
-    count = 0;
-    devices = TM_OneWire_First(&OneWire1);
-    while (devices) {
-        /* Increase counter */
-        count++;
-        
-        /* Get full ROM value, 8 bytes, give location of first byte where to save */
-        TM_OneWire_GetFullROM(&OneWire1, device[count - 1]);
-        
-        /* Get next device */
-        devices = TM_OneWire_Next(&OneWire1);
-    }
+  /* Checks for any device on 1-wire */
+  count = 0;
+  devices = TM_OneWire_First(&OneWire1);
+  while (devices) {
+    /* Increase counter */
+    count++;
     
-    /* If any devices on 1wire */
-    if (count > 0) {
-        sprintf(buf, "Devices found on 1-wire: %d\r\n", count);
+    /* Get full ROM value, 8 bytes, give location of first byte where to save */
+    TM_OneWire_GetFullROM(&OneWire1, device[count - 1]);
+    
+    /* Get next device */
+    devices = TM_OneWire_Next(&OneWire1);
+  }
+  
+  /* If any devices on 1wire */
+  if (count > 0) {
+    TM_DS18B20_StartAll(&OneWire1);
+    while (!TM_DS18B20_AllDone(&OneWire1));
+    sprintf(buf, "{\"event\": \"Devices found on 1-wire\", \"number\": %d, \"content\":[\r\n", count);
+    TM_USART_Puts(USART2, buf);
+    /* Display 64bit rom code for each device */
+    for (j = 0; j < count; j++) {
+      TM_USART_Puts(USART2, "\t{\"address\": \"");
+      for (i = 0; i < 8; i++) {
+        sprintf(buf, "0x%02X ", device[j][i]);
         TM_USART_Puts(USART2, buf);
-        /* Display 64bit rom code for each device */
-        for (j = 0; j < count; j++) {
-            for (i = 0; i < 8; i++) {
-                sprintf(buf, "0x%02X ", device[j][i]);
-                TM_USART_Puts(USART2, buf);
-            }
-            TM_USART_Puts(USART2, "\r\n");
-        }
-    } else {
-        TM_USART_Puts(USART2, "No devices on OneWire.\r\n");
+      }
+      TM_USART_Puts(USART2, "\"}");
+      if (j < (count - 1))
+        TM_USART_Puts(USART2, ",\r\n");
+      else
+        TM_USART_Puts(USART2, "]\r\n");
+        
     }
-    
-    /* Go through all connected devices and set resolution to 12bits */
-    for (i = 0; i < count; i++) {
-        /* Set resolution to 12bits */
-        TM_DS18B20_SetResolution(&OneWire1, device[i], TM_DS18B20_Resolution_12bits);
-    }
-    
-    /* Set high temperature alarm on device number 0, 25 degrees celcius */
-    //TM_DS18B20_SetAlarmHighTemperature(&OneWire1, device[0], 25);
-    
-    /* Disable alarm temperatures on device number 1 */
-    TM_DS18B20_DisableAlarmTemperature(&OneWire1, device[0]);
-    TM_DS18B20_DisableAlarmTemperature(&OneWire1, device[1]);
+    TM_USART_Puts(USART2, "}\r\n");
+  } else {
+    TM_USART_Puts(USART2, "{\"event\": \"No devices on OneWire.\"}\r\n");
+  }
+  
+  /* Go through all connected devices and set resolution to 12bits */
+  for (i = 0; i < count; i++) {
+      /* Set resolution to 12bits */
+      TM_DS18B20_SetResolution(&OneWire1, device[i], TM_DS18B20_Resolution_12bits);
+  }
+  
+  /* Set high temperature alarm on device number 0, 25 degrees celcius */
+  //TM_DS18B20_SetAlarmHighTemperature(&OneWire1, device[0], 25);
+  
+  /* Disable alarm temperatures on device number 1 */
+  TM_DS18B20_DisableAlarmTemperature(&OneWire1, device[0]);
+  TM_DS18B20_DisableAlarmTemperature(&OneWire1, device[1]);
 
 }
     
 
 void ds18b20_read_temp() {
 
-    /* Start temperature conversion on all devices on one bus */
+  static int conversion_running = 0;
+
+  if (!conversion_running){
     TM_DS18B20_StartAll(&OneWire1);
+    conversion_running = 1;
+  }else{
     
-    /* Wait until all are done on one onewire port */
-    while (!TM_DS18B20_AllDone(&OneWire1));
-    
-    /* Read temperature from each device separatelly */
-    for (i = 0; i < count; i++) {
-        /* Read temperature from ROM address and store it to sensor struct */
+    if (TM_DS18B20_AllDone(&OneWire1)){
+      
+      for (i = 0; i < count; i++) {
 
         if (!TM_DS18B20_Read(&OneWire1, device[i], &ds18b20_sensors[i].value)) {
           ds18b20_sensors[i].error_count++;
         }
+      }
+      
+      conversion_running = 0;
     }
-    
-    /* Reset alarm count */
-    alarm_count = 0;
+  }
 #if 0
     
+      /* Reset alarm count */
+      alarm_count = 0;
     /* Check if any device has alarm flag set */
     while (TM_DS18B20_AlarmSearch(&OneWire1)) {
         /* Store ROM of device which has alarm flag set */

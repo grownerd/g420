@@ -27,6 +27,7 @@
 
 void host_cmd_get(char * item);
 void host_cmd_set(char * item, char * val);
+void host_cmd_reset(char * item, char * val);
 void set_light_time(char * val);
 void set_minmax(char * val, uint8_t minmax);
 void set_pwm(char * val);
@@ -59,6 +60,8 @@ void command_parser(void){
 
     if (strncmp(cmd[0], "release", 7) == 0){
       emergency_stop(1);
+    } else if      (strncmp(cmd[0], "reset", 5) == 0){
+      host_cmd_reset(cmd[1], cmd[2]);
     } else if      (strncmp(cmd[0], "save", 4) == 0){
       save_data_to_flash();
     } else if (strncmp(cmd[0], "load", 4) == 0){
@@ -102,6 +105,10 @@ void host_cmd_get(char * item) {
   {
     print_light();
   }
+  else if (strncmp(item, "state", 5) == 0)
+  {
+    print_state();
+  }
   else if (strncmp(item, "pwmin", 5) == 0)
   {
     print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
@@ -135,9 +142,8 @@ void host_cmd_get(char * item) {
     print_capsense();
     print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
     print_irqs();
-    print_ec();
-    print_ph();
     print_settings();
+    print_state();
   }
   else if (strncmp(item, "ph", 2) == 0)
   {
@@ -146,6 +152,17 @@ void host_cmd_get(char * item) {
   else if (strncmp(item, "ec", 2) == 0)
   {
     print_ec();
+  }
+}
+
+void host_cmd_reset(char * item, char * val) {
+  if (strncmp(item, "errors", 6) == 0)
+  {
+    reset_errors();
+  }
+  else if (strncmp(item, "i2c", 3) == 0)
+  {
+    //reset_i2c();
   }
 }
 
@@ -166,6 +183,11 @@ void host_cmd_set(char * item, char * val) {
   else if (strncmp(item, "relay", 5) == 0)
   {
     set_relay(val);
+  }
+  else if (strncmp(item, "misc", 4) == 0)
+  {
+    set_misc(val);
+    print_settings();
   }
   else if (strncmp(item, "rtc", 3) == 0)
   {
@@ -189,6 +211,7 @@ void host_cmd_set(char * item, char * val) {
   else if (strncmp(item, "ph", 2) == 0)
   {
     set_ph(val);
+    print_ph();
   }
 }
 
@@ -300,10 +323,10 @@ void set_misc(char * val) {
     misc_settings.sewage_pump_run_s = atof(part[1]);
 
   } else if (strncmp(part[0], "ph401", 5) == 0) {
-    misc_settings.ph_cal401_mv = atoi(part[1]);
+    misc_settings.ph_cal401 = atoi(part[1]);
 
   } else if (strncmp(part[0], "ph686", 5) == 0) {
-    misc_settings.ph_cal686_mv = atoi(part[1]);
+    misc_settings.ph_cal686 = atoi(part[1]);
 
   } else if (strncmp(part[0], "ec_ra", 5) == 0) {
     misc_settings.ec_ra_ohms = atoi(part[1]);
@@ -338,10 +361,10 @@ void set_light_time(char * val) {
   }
   part[part_counter][j] = '\0';
 
-  light_timer.on_hour = atoi(part[0]);
-  light_timer.on_minutes = atoi(part[1]);
-  light_timer.off_hour = atoi(part[2]);
-  light_timer.off_minutes = atoi(part[3]);
+  light_timer.on_hour = (uint8_t)atoi(part[0]);
+  light_timer.on_minutes = (uint8_t)atoi(part[1]);
+  light_timer.off_hour = (uint8_t)atoi(part[2]);
+  light_timer.off_minutes = (uint8_t)atoi(part[3]);
 }
 
 // set min/max temp/humi for exhaust control
@@ -363,28 +386,30 @@ void set_minmax(char * val, uint8_t minmax) {
     }
   }
   part[part_counter][j] = '\0';
-  sprintf(buf, "{\"event\": \"Setting %s to %s\", \"time\": \"%s\"}\r\n", part[0], part[1], global_state.datestring);
 
-  //snprintf(buf, MAX_STR_LEN, "Setting \"%s\" to %s\r\n",part[0], part[1]);
+  float setpoint = atof(part[1]);
+  sprintf(buf, "{\"event\": \"Setting %s %s to %2.2f\", \"time\": \"%s\"}\r\n", minmax ? "max" : "min", part[0], setpoint, global_state.datestring);
+
+  //snprintf(buf, MAX_STR_LEN, "Setting \"%s\" to %s\r\n",part[0], setpoint);
   TM_USART_Puts(USART2, buf);
 
   if (strncmp(part[0], "temp_res", 8) == 0) {
     if (minmax)
-      coolant_setpoints.max_temp = atof(part[1]);
+      coolant_setpoints.max_temp = setpoint;
     else
-      coolant_setpoints.min_temp = atof(part[1]);
+      coolant_setpoints.min_temp = setpoint;
     print_coolant();
   } else if (strncmp(part[0], "temp_air", 8) == 0) {
     if (minmax)
-      exhaust_setpoints.max_temp = atof(part[1]);
+      exhaust_setpoints.max_temp = setpoint;
     else
-      exhaust_setpoints.min_temp = atof(part[1]);
+      exhaust_setpoints.min_temp = setpoint;
     print_exhaust();
   } else if (strncmp(part[0], "humi", 4) == 0) {
     if (minmax)
-      exhaust_setpoints.max_humi = atof(part[1]);
+      exhaust_setpoints.max_humi = setpoint;
     else
-      exhaust_setpoints.min_humi = atof(part[1]);
+      exhaust_setpoints.min_humi = setpoint;
     print_exhaust();
   }
 }
@@ -431,6 +456,12 @@ void set_pwm(char * val) {
     pwms[PWM_DEHUMI_PUMP].duty_percent = pwm_val;
   } else if (strncmp(part[0], "phdown", 6) == 0) {
     pwms[PWM_PHDOWN_PUMP].duty_percent = pwm_val;
+  } else if (strncmp(part[0], "nute1", 6) == 0) {
+    pwms[PWM_NUTRIENT1_PUMP].duty_percent = pwm_val;
+  } else if (strncmp(part[0], "nute2", 6) == 0) {
+    pwms[PWM_NUTRIENT2_PUMP].duty_percent = pwm_val;
+  } else if (strncmp(part[0], "nute3", 6) == 0) {
+    pwms[PWM_NUTRIENT3_PUMP].duty_percent = pwm_val;
   }
 }
 

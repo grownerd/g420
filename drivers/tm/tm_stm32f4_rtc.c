@@ -417,30 +417,40 @@ void TM_RTC_Interrupts(TM_RTC_Int_t int_value) {
 		RTC_WakeUpCmd(DISABLE);
 
 		if (int_value == TM_RTC_Int_60s) {
-			int_val = 0x3BFFF; 		/* 60 seconds = 60 * 4096 / 1 = 245760 */
+			//int_val = 0x3BFFF; 		/* 60 seconds = 60 * 4096 / 1 = 245760 */
+			int_val = 0x39386E; 		/* 60 seconds = 60 * 4096 / 1 = 245760 */
 		} else if (int_value == TM_RTC_Int_30s) {
-			int_val = 0x1DFFF;		/* 30 seconds */
+			//int_val = 0x1DFFF;		/* 30 seconds */
+			int_val = 0x1C9C37;		/* 30 seconds */
 		} else if (int_value == TM_RTC_Int_15s) {
-			int_val = 0xEFFF;		/* 15 seconds */
+			//int_val = 0xEFFF;		/* 15 seconds */
+			int_val = 0xE4E1B;		/* 15 seconds */
 		} else if (int_value == TM_RTC_Int_10s) {
-			int_val = 0x9FFF;		/* 10 seconds */
+			//int_val = 0x9FFF;		/* 10 seconds */
+			int_val = 0x98967;		/* 10 seconds */
 		} else if (int_value == TM_RTC_Int_5s) {
-			int_val = 0x4FFF;		/* 5 seconds */
+			//int_val = 0x4FFF;		/* 5 seconds */
+			int_val = 0x4C4B3;		/* 5 seconds */
 		} else if (int_value == TM_RTC_Int_2s) {
-			int_val = 0x1FFF;		/* 2 seconds */
+			//int_val = 0x1FFF;		/* 2 seconds */
+			int_val = 0x1E847;		/* 2 seconds */
 		} else if (int_value == TM_RTC_Int_1s) {
-			int_val = 0x0FFF;		/* 1 second */
+			//int_val = 0x0FFF;		/* 1 second */
+			int_val = 0xF423;		/* 1 second */
 		} else if (int_value == TM_RTC_Int_500ms) {
-			int_val = 0x7FF;		/* 500 ms */
+			//int_val = 0x7FF;		/* 500 ms */
+			int_val = 0x7A11;		/* 500 ms */
 		} else if (int_value == TM_RTC_Int_250ms) {
-			int_val = 0x3FF;		/* 250 ms */
+			//int_val = 0x3FF;		/* 250 ms */
+			int_val = 0x3D08;		/* 250 ms */
 		} else if (int_value == TM_RTC_Int_125ms) {
-			int_val = 0x1FF;		/* 125 ms */
+			//int_val = 0x1FF;		/* 125 ms */
+			int_val = 0x1E84;		/* 125 ms */
 		}		
 
-		/* Clock divided by 8, 32768 / 8 = 4096 */
-		/* 4096 ticks for 1second interrupt */
-		RTC_WakeUpClockConfig(RTC_WakeUpClock_RTCCLK_Div8);
+		/* Clock divided by 16, 1,000,000 / 16 = 62500 */
+		/* 62500 ticks for 1second interrupt */
+		RTC_WakeUpClockConfig(RTC_WakeUpClock_RTCCLK_Div16);
 		
 		/* Set RTC wakeup counter */
 		RTC_SetWakeUpCounter(int_val);

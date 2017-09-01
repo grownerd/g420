@@ -96,6 +96,9 @@ void print_time(void) {
 
 void TM_RTC_RequestHandler() {
   TM_DISCO_LedToggle(LED_BLUE | LED_ORANGE);
+  update_datestring();
+  //TM_USART_Puts(USART2, "tick\r\n");
+  //print_time();
 }
  
 /* Custom request handler function */

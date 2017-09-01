@@ -36,7 +36,7 @@ uint32_t capsense_data[2];
 
 char dummy_datestring[] = "00.00.0000 00:00:00";
 volatile global_state_struct_t global_state = {
-  .sewage_tank_empty = 0,
+  .sewage_tank_empty = 1,
   .drain_cycle_active = 0,
   .reservoir_state = NORMAL_IDLE,
   .datestring = dummy_datestring,
@@ -47,23 +47,39 @@ uint8_t capsense_capdac = 0x0;
 uint16_t capsense_offset = 0x0;
 uint16_t capsense_gain = 0x7fff;
 
+uint8_t i2c_errors = 0;
+
 char irq_input_names[NUM_IRQ_PINS][MAX_SENSOR_NAME_LENGTH + 1] = {
   "Blue Button",
   "Reservoir min. level",
   "Reservoir max. level",
   "Reservoir Alarm level",
-  "",
-  "",
-  "",
+  "unused 4",
+  "unused 5",
+  "unused 6",
   "Dehumidifier tank full",
   "Dehumidifier tank empty",
   "", // no pin 9
   "Sewage tank full",
   "Sewage tank empty",
-  "",
-  "",
+  "unused 12",
+  "unused 13",
   "", // no pin 14
-  "",
+  "unused 15",
+};
+
+char res_state_names[NUM_RES_STATES][MAX_SENSOR_NAME_LENGTH + 1] = {
+  "DRAIN_CYCLE_DRAINING",
+  "DRAIN_CYCLE_EMPTY",
+  "DRAIN_CYCLE_FILLING",
+  "DRAIN_CYCLE_FULL",
+  "DRAIN_CYCLE_NUTRIENTS",
+  "DRAIN_CYCLE_PHDOWN",
+  "NORMAL_MAX",
+  "NORMAL_FILLING",
+  "NORMAL_MIN",
+  "NORMAL_IDLE",
+  "NORMAL_PHDOWN",
 };
 
 char pwm_output_names[NUM_PWM_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1] = {
@@ -100,7 +116,7 @@ char unit_names[NUM_UNITS][MAX_UNIT_NAME_LENGTH + 1] = {
   "A",
 };
 
-void init_bme280(struct bme280_t * bme280);
+s8 init_bme280(struct bme280_t * bme280);
 void read_bme280(struct bme280_t * bme280, float * p_temp, float * p_humi, float * p_press);
 
 uint8_t watchdog_barked;
@@ -115,23 +131,37 @@ sensor_t ds18b20_sensors[DS18B20_NUM_DEVICES];
 
 
 int main(void) {
+  char buf[MAX_STR_LEN];
 
   watchdog_barked = 0;
 
   SystemInit();
+  TM_RTC_Init(TM_RTC_ClockSource_Internal);
+  update_datestring();
   
   TM_USART_Init(USART2, TM_USART_PinsPack_1, 115200);
-  TM_USART_Puts(USART2, "System Startup.\r\n");
+  sprintf(buf, "{\"event\": \"System Startup\", \"time\": \"%s\"}\r\n", global_state.datestring);
+  TM_USART_Puts(USART2, buf);
 
 
-  TM_DELAY_Init();
+  gpio_init();  
+  pwm_init();
+  pwmin_init();
+  adc_init();
+  exti_init();
+    
   
+  TM_DELAY_Init();
+
   TM_DISCO_LedInit();
   TM_DISCO_LedOn(LED_ORANGE);
+  TM_RTC_Interrupts(TM_RTC_Int_1s);
   
-  TM_RTC_Init(TM_RTC_ClockSource_Internal);
+  // this can take some time, so do it before the watchdog init
+  onewire_init();
 
-  if (TM_WATCHDOG_Init(TM_WATCHDOG_Timeout_4s)) {
+  if (TM_WATCHDOG_Init(TM_WATCHDOG_Timeout_1s)) {
+  //if (1){
     //System was reset by watchdog
     TM_DISCO_LedOn(LED_RED);
     watchdog_barked = 1;
@@ -140,15 +170,20 @@ int main(void) {
     TM_DISCO_LedOn(LED_GREEN);
   }
     
-  char buf[50];
-  TM_RTC_Interrupts(TM_RTC_Int_1s);
 
-  onewire_init();
 
-  init_I2C1();
+  //i2c_bus_reset();
+  //init_I2C1();
   struct bme280_t bme280_1;
 
-  init_bme280(&bme280_1); // this is not the driver internal init function!
+  s8 bme280_init_result = -1;
+  i2c_bus_power_cycle();
+  //i2c_bus_reset();
+  init_I2C1();
+  bme280_init_result = init_bme280(&bme280_1); // this is not the driver internal init function!
+  TM_WATCHDOG_Reset();
+    //TM_USART_Puts(USART2, "still trying to initialize BME280\r\n");
+    
 
   bme280_temp.name = sensor_names[TEMP_MAIN];
   bme280_temp.unit = DEG_C;
@@ -172,8 +207,11 @@ int main(void) {
   nutrient_pumps[2].name = pwm_output_names[PWM_NUTRIENT3_PUMP];
   nutrient_pumps[2].pwm_output = PWM_NUTRIENT3_PUMP;
 
-  uint8_t i = 0;
 
+  //fdc1004_init();
+
+
+  uint8_t i = 0;
   for (i=0; i < DS18B20_NUM_DEVICES; i++) {
     ds18b20_sensors[i].name = sensor_names[i];
     ds18b20_sensors[i].unit = DEG_C;
@@ -182,48 +220,32 @@ int main(void) {
 
   reset_errors();
 
-  gpio_init();  
-  pwm_init();
-  adc_init();
-  exti_init();
-    
-
-  coolant_setpoints.max_temp = 0.00f;
-  coolant_setpoints.min_temp = 0.00f;
-
-  exhaust_setpoints.max_temp = 0.00f;
-  exhaust_setpoints.max_humi = 0.00f;
-  exhaust_setpoints.min_temp = 0.00f;
-  exhaust_setpoints.min_humi = 0.00f;
-
-  misc_settings.fill_to_alarm_level = 0;
-  misc_settings.ec_k = 2.88;
-  misc_settings.ec_r1_ohms = 1000;
-  misc_settings.ec_ra_ohms = 25;
-  misc_settings.ec_temp_coef = 0.019;
 
   read_flash();
 
-  if (!fdc1004_init())
-    TM_DISCO_LedOn(LED_RED);
-
 
   uint32_t last_time = TM_Time;
-
   while (1) {
 
-    if ((TM_Time - last_time) >= 1000) {
+    if ((TM_Time - last_time) >= 5000) {
       last_time = TM_Time;
-      //TM_USART_Puts(USART2, "tick\r\n");
-      update_datestring();
+      print_env();
+      sprintf(buf, "{\"gpio PC1\": \"%d\", \"time\": \"%s\"}\r\n", GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1), global_state.datestring);
+      TM_USART_Puts(USART2, buf);
+      //print_time();
     }
 
     // Read Sensors
-    fdc1004_read(capsense_data);
+    //fdc1004_read(capsense_data);
     ds18b20_read_temp();
     read_ec(&adc_ec.value);
     read_ph(&adc_ph.value);
     read_bme280(&bme280_1, &bme280_temp.value, &bme280_humi.value, &bme280_press.value);
+    if (i2c_errors > 0){
+      i2c_bus_reset();
+      init_I2C1();
+      init_bme280(&bme280_1);
+    }
 
     // Execute Commands
     command_parser();
@@ -236,9 +258,38 @@ int main(void) {
     ph_ctrl();
     reservoir_drain_cycle_ctrl();
 
+        TM_PWMIN_Get(&PWMIN1_Data);
+        if (PWMIN1_Data.Frequency > 0)
+          print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
+
     //Reset Watchdog
     TM_WATCHDOG_Reset();
+    sprintf(buf, "{\"sewage pump run_for_ms\": \"%d\", \"time\": \"%s\"}\r\n", pwms[PWM_SEWAGE_PUMP].run_for_ms, global_state.datestring);
+    //TM_USART_Puts(USART2, buf);
   }
+}
+
+void set_defaults(){
+
+  coolant_setpoints.max_temp = 16.49f;
+  coolant_setpoints.min_temp = 16.41f;
+
+  exhaust_setpoints.max_temp = 26.00f;
+  exhaust_setpoints.max_humi = 60.00f;
+  exhaust_setpoints.min_temp = 20.00f;
+  exhaust_setpoints.min_humi = 40.00f;
+
+  misc_settings.fill_to_alarm_level = 0;
+  misc_settings.ec_k = 2.88;
+  misc_settings.ec_r1_ohms = 470;
+  misc_settings.ec_ra_ohms = 25;
+  misc_settings.ec_temp_coef = 0.019;
+  misc_settings.sewage_pump_pause_s = 7200;
+  misc_settings.sewage_pump_run_s = 60;
+  misc_settings.ph_cal401 = 0;
+  misc_settings.ph_cal686 = 4096;
+  misc_settings.res_settling_time_s = 300;
+
 }
 
 void emergency_stop(uint8_t release){
@@ -264,7 +315,8 @@ void emergency_stop(uint8_t release){
 
 void reservoir_drain_cycle_ctrl()
 {
-  char buf[128];
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
   if (global_state.drain_cycle_active){
     switch(global_state.reservoir_state){
       case NORMAL_IDLE:
@@ -301,14 +353,17 @@ void reservoir_drain_cycle_ctrl()
         break;
 
     }
+    TM_USART_Puts(USART2, buf);
   } else {
     pwms[PWM_DRAIN_PUMP].duty_percent = 0;
     pwms[PWM_FILL_PUMP].duty_percent = 0;
   }
-  TM_USART_Puts(USART2, buf);
 }
 
 void nutrient_pump_ctrl(void){
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
+
   if (global_state.adding_nutrients){
     static uint32_t last_time = 0;
     if (!last_time) last_time = TM_Time;
@@ -319,6 +374,8 @@ void nutrient_pump_ctrl(void){
       if (i < 3) {
         uint8_t pwm_out = nutrient_pumps[i].pwm_output;
         pwms[pwm_out].run_for_ms = nutrient_pumps[i].dosage_ml * nutrient_pumps[i].ms_per_ml;
+        sprintf(buf, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", pwm_output_names[pwm_out], pwms[pwm_out].run_for_ms, global_state.datestring);
+        TM_USART_Puts(USART2, buf);
       } else{
         if (global_state.reservoir_state == DRAIN_CYCLE_NUTRIENTS)
           global_state.reservoir_state = DRAIN_CYCLE_PHDOWN;
@@ -332,14 +389,19 @@ void nutrient_pump_ctrl(void){
 }
 
 void sewage_pump_ctrl(void){
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
+
+  global_state.sewage_tank_empty = GPIO_ReadInputDataBit(irqs[SWITCH_SEWAGE_MIN].gpio_port, irqs[SWITCH_SEWAGE_MIN].gpio_pin);
+
   if (!global_state.sewage_tank_empty && !global_state.sewage_pump_blocked){
     static uint32_t last_time = 0;
     if (!last_time) last_time = TM_Time;
 
-    if ((TM_Time - last_time) >= (misc_settings.sewage_pump_pause_s * 1000)) {
-        pwms[PWM_SEWAGE_PUMP].run_for_ms = misc_settings.sewage_pump_run_s;
+    if ((TM_Time - last_time) >= ((misc_settings.sewage_pump_pause_s * 1000) + (misc_settings.sewage_pump_run_s * 1000))) {
+      pwms[PWM_SEWAGE_PUMP].run_for_ms = misc_settings.sewage_pump_run_s * 1000;
+      last_time = TM_Time;
     }
-    last_time = TM_Time;
   }
 }
 
@@ -387,7 +449,8 @@ void exhaust_ctrl(void){
 
   if (desired_state != current_state) {
     GPIO_WriteBit(relays[RELAY_EXHAUST].gpio_port, relays[RELAY_EXHAUST].gpio_pin, desired_state);
-    char buf[128];
+    char buf[MAX_STR_LEN];
+    memset(buf, 0, sizeof(buf));
     sprintf(buf, "{\"event\": \"Exhaust turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }
@@ -407,8 +470,9 @@ void res_temp_ctrl(void){
   if (desired_state != current_state) {
     pwms[PWM_COOLANT_PUMP].duty_percent = desired_state;
     pwms[PWM_COOLANT_PUMP].run_for_ms = 0xffffffff;
-    char buf[256];
-    sprintf(buf, "{ \"event\": \"Coolant pump turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
+    char buf[MAX_STR_LEN];
+    memset(buf, 0, sizeof(buf));
+    sprintf(buf, "{\"event\": \"Coolant pump turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }
 }
@@ -460,7 +524,8 @@ void light_scheduler(void) {
 
   if (light_timer.state != desired_state) {
     GPIO_WriteBit(relays[RELAY_LIGHT].gpio_port, relays[RELAY_LIGHT].gpio_pin, desired_state);
-    char buf[32];
+    char buf[MAX_STR_LEN];
+    memset(buf, 0, sizeof(buf));
     sprintf(buf, "{\"event\": \"Main Light turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }
@@ -468,6 +533,7 @@ void light_scheduler(void) {
 
 void print_env(void) {
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
 
   TM_USART_Puts(USART2, "{\"name\":\"Sensors\",\"content\":[\r\n");
   sprintf(buf, "\t{\"name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n\t{\"name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"}, \r\n\t{\"name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n",
@@ -485,22 +551,26 @@ void print_env(void) {
 
   uint8_t i;
   for (i=0; i< DS18B20_NUM_DEVICES; i++) {
-    sprintf(buf, "\t{\"name\":\"%s\",\"value\":%.2f, \"unit\":\"%s\"}",
+    sprintf(buf, "\t{\"name\":\"%s\",\"value\":%.2f, \"unit\":\"%s\"},\r\n",
       ds18b20_sensors[i].name,
       ds18b20_sensors[i].value,
       unit_names[DEG_C]
     );
     TM_USART_Puts(USART2, buf);
-    if (i == DS18B20_NUM_DEVICES -1)
-      TM_USART_Puts(USART2, "\r\n");
-    else
-      TM_USART_Puts(USART2, ",\r\n");
   }
+
+  sprintf(buf, "\t{\"name\": \"%s\", \"value\":%f},\r\n", sensor_names[ADC_PH], adc_ph.value);
+  TM_USART_Puts(USART2, buf);
+
+  sprintf(buf, "\t{\"name\": \"%s\", \"value\":%f}\r\n", sensor_names[ADC_EC], adc_ec.value);
+  TM_USART_Puts(USART2, buf);
+
   TM_USART_Puts(USART2, "]}\r\n");
 }
 
 void print_light(void) {
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
 
   light_timer.state = GPIO_ReadInputDataBit(relays[RELAY_LIGHT].gpio_port, relays[RELAY_LIGHT].gpio_pin);
   sprintf(buf, "{\"name\":\"Main Light\",\"content\":{\r\n\t\"on_time\":\"%02d:%02d\",\r\n\t\"off_time\":\"%02d:%02d\",\r\n\t\"state\":\"%s\"\r\n}}\r\n",
@@ -516,6 +586,7 @@ void print_light(void) {
 
 void print_coolant(void) {
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
 
   coolant_setpoints.state = pwms[PWM_COOLANT_PUMP].duty_percent;
   sprintf(buf, "{\"name\":\"Coolant Control\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
@@ -529,6 +600,7 @@ void print_coolant(void) {
 
 void print_exhaust(void) {
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
 
   exhaust_setpoints.state = GPIO_ReadInputDataBit(relays[RELAY_EXHAUST].gpio_port, relays[RELAY_EXHAUST].gpio_pin);
   sprintf(buf, "{\"name\":\"Main Exhaust\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"max_humi\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"min_humi\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
@@ -544,6 +616,7 @@ void print_exhaust(void) {
 
 void print_relays(void) {
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
 
   TM_USART_Puts(USART2, "{\"name\":\"Relays\",\"content\":[\r\n");
   uint8_t i;
@@ -565,19 +638,19 @@ void print_relays(void) {
 
 void print_errors(void){
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
   uint8_t i;
 
   TM_USART_Puts(USART2, "{\"name\":\"Errors\",\"content\":[\r\n");
   
   for (i=0; i<DS18B20_NUM_DEVICES; i++) {
     
-    sprintf((char *) buf, "\t{\"name\":\"%s\", \"count\":%d}", ds18b20_sensors[i].name, ds18b20_sensors[i].error_count);
+    sprintf((char *) buf, "\t{\"name\":\"DS18B20 %s\", \"count\":%d},\r\n", ds18b20_sensors[i].name, ds18b20_sensors[i].error_count);
     TM_USART_Puts(USART2, buf);
-    if (i == DS18B20_NUM_DEVICES -1)
-      TM_USART_Puts(USART2, "\r\n");
-    else
-      TM_USART_Puts(USART2, ",\r\n");
   }
+
+  sprintf((char *) buf, "\t{\"name\":\"Restarted by Watchdog\", \"value\":\"%s\"}\r\n", watchdog_barked ? "yes" : "no");
+  TM_USART_Puts(USART2, buf);
   TM_USART_Puts(USART2, "]}\r\n");
 
 }
@@ -591,6 +664,7 @@ void reset_errors(void) {
 
 void print_pwm(void){
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
   uint8_t i;
 
   TM_USART_Puts(USART2, "{\"name\":\"PWM Channels\",\"content\":[\r\n");
@@ -613,6 +687,7 @@ void print_pwm(void){
 
 void print_capsense(void){
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
   uint8_t i;
 
   TM_USART_Puts(USART2, "{\"name\":\"Capsense Channels\",\"content\":[\r\n");
@@ -633,6 +708,7 @@ void print_capsense(void){
 
 void print_pwmin(uint8_t id, float freq){
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
   sprintf(buf, "{\"name\": \"PWM Input\", \"id\":%d, \"frequency\":%7.2f}\r\n", id, freq);
   TM_USART_Puts(USART2, buf);
 
@@ -641,6 +717,7 @@ void print_pwmin(uint8_t id, float freq){
 
 void print_irqs(void){
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
   uint8_t i;
 
   TM_USART_Puts(USART2, "{\"name\":\"IRQ Inputs\",\"content\":[\r\n");
@@ -661,6 +738,7 @@ void print_irqs(void){
 
 void print_ph(void){
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
   sprintf(buf, "{\"name\": \"%s\", \"value\":%f}\r\n", sensor_names[ADC_PH], adc_ph.value);
   TM_USART_Puts(USART2, buf);
 }
@@ -668,6 +746,7 @@ void print_ph(void){
 
 void print_ec(void){
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
   sprintf(buf, "{\"name\": \"%s\", \"value\":%f}\r\n", sensor_names[ADC_EC], adc_ec.value);
   TM_USART_Puts(USART2, buf);
 }
@@ -675,6 +754,7 @@ void print_ec(void){
 
 void print_settings(void){
   char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
   uint8_t i;
 
   sprintf(buf, "{\"name\":\"Misc. Settings\",\"content\":{\r\n\t\
@@ -682,8 +762,8 @@ void print_settings(void){
 \"ec_temp_coef\":%1.4f,\r\n\t\
 \"ec_r1_ohms\":%d,\r\n\t\
 \"ec_ra_ohms\":%d,\r\n\t\
-\"ph_cal401_mv\":%d,\r\n\t\
-\"ph_cal686_mv\":%d,\r\n\t\
+\"ph_cal401\":%d,\r\n\t\
+\"ph_cal686\":%d,\r\n\t\
 \"res_settling_time\":%d,\r\n\t\
 \"sewage_pump_pause_s\":%d,\r\n\t\
 \"sewage_pump_run_s\":%d,\r\n\t\
@@ -693,12 +773,45 @@ void print_settings(void){
     misc_settings.ec_temp_coef,
     misc_settings.ec_r1_ohms,
     misc_settings.ec_ra_ohms,
-    misc_settings.ph_cal401_mv,
-    misc_settings.ph_cal686_mv,
+    misc_settings.ph_cal401,
+    misc_settings.ph_cal686,
     misc_settings.res_settling_time_s,
     misc_settings.sewage_pump_pause_s,
     misc_settings.sewage_pump_run_s,
     misc_settings.fill_to_alarm_level
+  );
+  TM_USART_Puts(USART2, buf);
+}
+
+
+
+void print_state(void){
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
+  uint8_t i;
+
+  sprintf(buf, "{\"name\":\"Global State\",\"content\":{\r\n\t\
+\"sewage_pump_blocked\":%d,\r\n\t\
+\"sewage_tank_full\":%d,\r\n\t\
+\"sewage_tank_empty\":%d,\r\n\t\
+\"drain_cycle_active\":%d,\r\n\t\
+\"adjusting_ph\":%d,\r\n\t\
+\"adding_nutrients\":%d,\r\n\t\
+\"reservoir_alarm\":%d,\r\n\t\
+\"reservoir_max\":%d,\r\n\t\
+\"reservoir_min\":%d,\r\n\t\
+\"reservoir_state\":%s}\r\n\
+}\r\n",
+    global_state.sewage_pump_blocked,
+    global_state.sewage_tank_full,
+    global_state.sewage_tank_empty,
+    global_state.drain_cycle_active,
+    global_state.adjusting_ph,
+    global_state.adding_nutrients,
+    global_state.reservoir_alarm,
+    global_state.reservoir_max,
+    global_state.reservoir_min,
+    res_state_names[global_state.reservoir_state]
   );
   TM_USART_Puts(USART2, buf);
 }

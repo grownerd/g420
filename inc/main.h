@@ -5,10 +5,12 @@
 #define MAX_SENSOR_NAME_LENGTH  64
 #define MAX_OUTPUT_NAME_LENGTH  64
 #define NUM_SENSORS 7
+#define NUM_RES_STATES 11
 #define NUM_UNITS 8
 #define MAX_UNIT_NAME_LENGTH 9
 #define MAX_STR_LEN 1024
 #define V_IN 3.3F
+#define FLASH_SIZE 2048
 
 #define ERROR_SEWAGE_TANK_FULL -1
 
@@ -25,7 +27,9 @@ void print_irqs(void);
 void print_ec(void);
 void print_ph(void);
 void print_settings(void);
+void print_state(void);
 
+void set_defaults();
 void emergency_stop(uint8_t release);
 void reservoir_drain_cycle_ctrl();
 void reset_errors(void);
@@ -46,6 +50,7 @@ extern char sensor_names[NUM_SENSORS][MAX_SENSOR_NAME_LENGTH + 1];
 extern char pwm_output_names[NUM_PWM_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1];
 extern char unit_names[NUM_UNITS][MAX_UNIT_NAME_LENGTH + 1];
 
+extern struct bme280_t bme280_1;
 
 typedef enum resservoir_state {
   DRAIN_CYCLE_DRAINING,
@@ -156,8 +161,8 @@ typedef struct misc_settings {
   float ec_temp_coef;
   uint16_t ec_r1_ohms;
   uint16_t ec_ra_ohms;
-  uint16_t ph_cal401_mv;
-  uint16_t ph_cal686_mv;
+  uint16_t ph_cal401;
+  uint16_t ph_cal686;
   uint32_t res_settling_time_s;
   uint32_t sewage_pump_pause_s;
   uint32_t sewage_pump_run_s;
@@ -170,11 +175,15 @@ misc_settings_struct_t misc_settings;
 
 typedef struct global_state {
   uint8_t sewage_pump_blocked   : 1;
+  uint8_t sewage_tank_full      : 1;
   uint8_t sewage_tank_empty     : 1;
   uint8_t drain_cycle_active    : 1;
   uint8_t adjusting_ph          : 1;
   uint8_t adding_nutrients      : 1;
-  uint8_t                       : 3;
+  uint8_t reservoir_alarm       : 1;
+  uint8_t reservoir_max         : 1;
+  uint8_t reservoir_min         : 1;
+  uint8_t                       : 7;
   res_states_t reservoir_state;
   char* datestring;
 }global_state_struct_t;
