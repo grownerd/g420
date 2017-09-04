@@ -47,7 +47,6 @@ uint8_t capsense_capdac = 0x0;
 uint16_t capsense_offset = 0x0;
 uint16_t capsense_gain = 0x7fff;
 
-uint8_t i2c_errors = 0;
 
 char irq_input_names[NUM_IRQ_PINS][MAX_SENSOR_NAME_LENGTH + 1] = {
   "Blue Button",
@@ -65,7 +64,7 @@ char irq_input_names[NUM_IRQ_PINS][MAX_SENSOR_NAME_LENGTH + 1] = {
   "unused 12",
   "unused 13",
   "", // no pin 14
-  "unused 15",
+  "Water Storage empty",
 };
 
 char res_state_names[NUM_RES_STATES][MAX_SENSOR_NAME_LENGTH + 1] = {
@@ -75,11 +74,12 @@ char res_state_names[NUM_RES_STATES][MAX_SENSOR_NAME_LENGTH + 1] = {
   "DRAIN_CYCLE_FULL",
   "DRAIN_CYCLE_NUTRIENTS",
   "DRAIN_CYCLE_PHDOWN",
-  "NORMAL_MAX",
-  "NORMAL_FILLING",
   "NORMAL_MIN",
-  "NORMAL_IDLE",
+  "NORMAL_FILLING",
+  "NORMAL_MAX",
+  "NORMAL_NUTRIENTS",
   "NORMAL_PHDOWN",
+  "NORMAL_IDLE",
 };
 
 char pwm_output_names[NUM_PWM_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1] = {
@@ -135,6 +135,8 @@ int main(void) {
 
   watchdog_barked = 0;
 
+  set_defaults();
+
   SystemInit();
   TM_RTC_Init(TM_RTC_ClockSource_Internal);
   update_datestring();
@@ -172,17 +174,14 @@ int main(void) {
     
 
 
-  //i2c_bus_reset();
-  //init_I2C1();
   struct bme280_t bme280_1;
 
   s8 bme280_init_result = -1;
-  i2c_bus_power_cycle();
-  //i2c_bus_reset();
+  i2c_bus_reset();
   init_I2C1();
   bme280_init_result = init_bme280(&bme280_1); // this is not the driver internal init function!
-  TM_WATCHDOG_Reset();
-    //TM_USART_Puts(USART2, "still trying to initialize BME280\r\n");
+  //TM_WATCHDOG_Reset();
+  TM_USART_Puts(USART2, "bme280 initialized\r\n");
     
 
   bme280_temp.name = sensor_names[TEMP_MAIN];
@@ -230,9 +229,39 @@ int main(void) {
     if ((TM_Time - last_time) >= 5000) {
       last_time = TM_Time;
       print_env();
-      sprintf(buf, "{\"gpio PC1\": \"%d\", \"time\": \"%s\"}\r\n", GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1), global_state.datestring);
-      TM_USART_Puts(USART2, buf);
-      //print_time();
+      print_errors();
+
+      static uint32_t last_i2c_restarts = 0;
+
+      if (global_state.i2c_restarts > last_i2c_restarts){
+        uint32_t restarts_done = global_state.i2c_restarts - last_i2c_restarts;
+        last_i2c_restarts = global_state.i2c_restarts;
+
+        // force a reboot if the bus has been restarted too often
+        if ((restarts_done > misc_settings.i2c_max_restarts)
+            && (!global_state.adjusting_ph)
+            && (!global_state.adding_nutrients)
+            && (!global_state.drain_cycle_active)
+            && (global_state.reservoir_state == NORMAL_IDLE)
+        ){
+#if 0
+          while (1);
+#else
+          TM_WATCHDOG_Reset();
+          i2c_bus_reset();
+          RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
+          Delay(10000);
+          TM_WATCHDOG_Reset();
+          init_I2C1();
+          init_bme280(&bme280_1);
+          global_state.i2c_errors = 0;
+          global_state.i2c_restarts = 0;
+          sprintf(buf, "{\"event\": \"I2C Bus Reset with Delay\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          TM_USART_Puts(USART2, buf);
+#endif
+        }
+      }
+
     }
 
     // Read Sensors
@@ -241,10 +270,18 @@ int main(void) {
     read_ec(&adc_ec.value);
     read_ph(&adc_ph.value);
     read_bme280(&bme280_1, &bme280_temp.value, &bme280_humi.value, &bme280_press.value);
-    if (i2c_errors > 0){
+
+    // If we had any timeouts on the I2C bus, try to recover by clocking out the remaining garbage and restarting the peripheral
+    if (global_state.i2c_errors > 0){
       i2c_bus_reset();
+      RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
+      //Delay(1000000);
       init_I2C1();
       init_bme280(&bme280_1);
+      global_state.i2c_errors = 0;
+      global_state.i2c_restarts++;
+      sprintf(buf, "{\"event\": \"I2C Bus Reset\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      TM_USART_Puts(USART2, buf);
     }
 
     // Execute Commands
@@ -252,20 +289,18 @@ int main(void) {
     light_scheduler();
     res_temp_ctrl();
     pwm_scheduler();
-    pwm_ctrl();
     nutrient_pump_ctrl();
     sewage_pump_ctrl();
     ph_ctrl();
-    reservoir_drain_cycle_ctrl();
+    reservoir_level_ctrl();
+    pwm_ctrl();
 
-        TM_PWMIN_Get(&PWMIN1_Data);
-        if (PWMIN1_Data.Frequency > 0)
-          print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
+    TM_PWMIN_Get(&PWMIN1_Data);
+    if (PWMIN1_Data.Frequency > 0)
+      print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
 
     //Reset Watchdog
     TM_WATCHDOG_Reset();
-    sprintf(buf, "{\"sewage pump run_for_ms\": \"%d\", \"time\": \"%s\"}\r\n", pwms[PWM_SEWAGE_PUMP].run_for_ms, global_state.datestring);
-    //TM_USART_Puts(USART2, buf);
   }
 }
 
@@ -279,6 +314,10 @@ void set_defaults(){
   exhaust_setpoints.min_temp = 20.00f;
   exhaust_setpoints.min_humi = 40.00f;
 
+  misc_settings.flow_sensor_lag = 3000;
+  misc_settings.i2c_max_restarts = 3;
+  misc_settings.i2c_timeout = 10;
+  misc_settings.i2c_break_enabled = 1;
   misc_settings.fill_to_alarm_level = 0;
   misc_settings.ec_k = 2.88;
   misc_settings.ec_r1_ohms = 470;
@@ -313,51 +352,90 @@ void emergency_stop(uint8_t release){
   }
 }
 
-void reservoir_drain_cycle_ctrl()
+void reservoir_level_ctrl()
 {
+  static uint32_t drain_time = 0;
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
-  if (global_state.drain_cycle_active){
-    switch(global_state.reservoir_state){
-      case NORMAL_IDLE:
-        if (global_state.sewage_tank_empty){
-          global_state.reservoir_state = DRAIN_CYCLE_DRAINING;
-          pwms[PWM_DRAIN_PUMP].duty_percent = 100;
-          sprintf(buf, "{\"event\": \"Reservoir Draining started\", \"time\": \"%s\"}\r\n", global_state.datestring);
-        } else {
+
+  global_state.reservoir_min = (GPIO_ReadInputDataBit(irqs[SWITCH_RES_MIN].gpio_port, irqs[SWITCH_RES_MIN].gpio_pin));
+  global_state.reservoir_max = (!GPIO_ReadInputDataBit(irqs[SWITCH_RES_MAX].gpio_port, irqs[SWITCH_RES_MAX].gpio_pin));
+  global_state.reservoir_alarm = (!GPIO_ReadInputDataBit(irqs[SWITCH_RES_ALARM].gpio_port, irqs[SWITCH_RES_ALARM].gpio_pin));
+
+
+  switch(global_state.reservoir_state){
+    case NORMAL_IDLE:
+      if (global_state.drain_cycle_active){
+        if (!global_state.sewage_tank_empty){
           sprintf(buf, "{\"error\": \"Sewage Tank full\", \"time\": \"%s\"}\r\n", global_state.datestring);
           global_state.drain_cycle_active = 0;
-        }
-        break;
-
-      case DRAIN_CYCLE_DRAINING:
-        TM_PWMIN_Get(&PWMIN1_Data);
-        if (PWMIN1_Data.Frequency > 0) {
-          print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
+        } else if (global_state.water_tank_empty){
+          sprintf(buf, "{\"error\": \"Water Tank empty\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          global_state.drain_cycle_active = 0;
         } else {
-          global_state.reservoir_state = DRAIN_CYCLE_EMPTY;
-          pwms[PWM_DRAIN_PUMP].duty_percent = 0;
-          sprintf(buf, "{\"event\": \"Reservoir Draining complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          global_state.reservoir_state = DRAIN_CYCLE_DRAINING;
+          pwms[PWM_DRAIN_PUMP].run_for_ms = 5000;
+          sprintf(buf, "{\"event\": \"Reservoir Draining started\", \"time\": \"%s\"}\r\n", global_state.datestring);
         }
+      } else if (global_state.reservoir_min){
+        global_state.reservoir_state = NORMAL_MIN;
+      } else if (global_state.reservoir_min){
+        global_state.reservoir_state = NORMAL_MIN;
+      } else {
+        pwms[PWM_DRAIN_PUMP].run_for_ms = 0;
+        pwms[PWM_FILL_PUMP].run_for_ms = 0;
+      }
+      break;
+
+    case NORMAL_MIN:
+      global_state.reservoir_state = NORMAL_FILLING;
+      sprintf(buf, "{\"event\": \"Reservoir topping up started\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      break;
+
+    case NORMAL_FILLING:
+    case DRAIN_CYCLE_FILLING:
+      pwms[PWM_FILL_PUMP].run_for_ms = 5000;
+      break;
+
+    case NORMAL_MAX:
+      global_state.reservoir_state = NORMAL_NUTRIENTS;
+      sprintf(buf, "{\"event\": \"Reservoir topping up completed\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      pwms[PWM_FILL_PUMP].run_for_ms = 0;
+      break;
+
+    case DRAIN_CYCLE_DRAINING:
+      if (!drain_time) drain_time = TM_Time;
+
+      if (TM_Time < (drain_time + misc_settings.flow_sensor_lag))
         break;
 
-      case DRAIN_CYCLE_EMPTY:
-        global_state.reservoir_state = DRAIN_CYCLE_FILLING;
-        sprintf(buf, "{\"event\": \"Reservoir Filling started\", \"time\": \"%s\"}\r\n", global_state.datestring);
-        pwms[PWM_FILL_PUMP].duty_percent = 100;
-        break;
+      pwms[PWM_DRAIN_PUMP].run_for_ms = 5000;
+      TM_PWMIN_Get(&PWMIN1_Data);
+      if (PWMIN1_Data.Frequency > 0) {
+        print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
+      } else {
+        global_state.reservoir_state = DRAIN_CYCLE_EMPTY;
+        pwms[PWM_DRAIN_PUMP].run_for_ms = 0;
+        sprintf(buf, "{\"event\": \"Reservoir Draining complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      }
+      drain_time = TM_Time;
+      break;
 
-      case DRAIN_CYCLE_FULL:
-        global_state.adding_nutrients = 1;
-        global_state.reservoir_state = DRAIN_CYCLE_NUTRIENTS;
-        break;
+    case DRAIN_CYCLE_EMPTY:
+      global_state.reservoir_state = DRAIN_CYCLE_FILLING;
+      sprintf(buf, "{\"event\": \"Reservoir Filling started\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      pwms[PWM_FILL_PUMP].run_for_ms = 5000;
+      break;
 
-    }
-    TM_USART_Puts(USART2, buf);
-  } else {
-    pwms[PWM_DRAIN_PUMP].duty_percent = 0;
-    pwms[PWM_FILL_PUMP].duty_percent = 0;
+    case DRAIN_CYCLE_FULL:
+      global_state.adding_nutrients = 1;
+      global_state.reservoir_state = DRAIN_CYCLE_NUTRIENTS;
+      sprintf(buf, "{\"event\": \"Reservoir Filling complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      break;
+
   }
+  TM_USART_Puts(USART2, buf);
+
 }
 
 void nutrient_pump_ctrl(void){
@@ -379,6 +457,9 @@ void nutrient_pump_ctrl(void){
       } else{
         if (global_state.reservoir_state == DRAIN_CYCLE_NUTRIENTS)
           global_state.reservoir_state = DRAIN_CYCLE_PHDOWN;
+        else if (global_state.reservoir_state == NORMAL_NUTRIENTS)
+          global_state.reservoir_state = NORMAL_PHDOWN;
+
         global_state.adding_nutrients = 0;
         i = 0;
       }
@@ -800,6 +881,7 @@ void print_state(void){
 \"reservoir_alarm\":%d,\r\n\t\
 \"reservoir_max\":%d,\r\n\t\
 \"reservoir_min\":%d,\r\n\t\
+\"water_tank_empty\":%d,\r\n\t\
 \"reservoir_state\":%s}\r\n\
 }\r\n",
     global_state.sewage_pump_blocked,
@@ -811,6 +893,7 @@ void print_state(void){
     global_state.reservoir_alarm,
     global_state.reservoir_max,
     global_state.reservoir_min,
+    global_state.water_tank_empty,
     res_state_names[global_state.reservoir_state]
   );
   TM_USART_Puts(USART2, buf);

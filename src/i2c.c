@@ -1,28 +1,42 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <stm32f4xx.h>
 #include <stm32f4xx_i2c.h>
+#include <stm32f4xx_usart.h>
+#include <stm32f4xx_gpio.h>
+
+#include "defines.h"
+#include "tm_stm32f4_rtc.h"
 #include "tm_stm32f4_delay.h"
+#include "tm_stm32f4_onewire.h"
+#include "tm_stm32f4_usart.h"
+#include "tm_stm32f4_ds18b20.h"
+#include "tm_stm32f4_disco.h"
+#include "tm_stm32f4_watchdog.h"
+#include "tm_stm32f4_pwm.h"
+#include "tm_stm32f4_pwmin.h"
+#include "tm_stm32f4_exti.h"
+#include "tm_stm32f4_adc.h"
+ 
+#include "bme280.h"
+#include "gpio.h"
+#include "adc.h"
+#include "main.h"
 #include "i2c.h"
+#include "onewire.h"
+#include "rtc.h"
+#include "command_parser.h"
+#include "flash.h"
+
 
 #define	I2C_BUFFER_LEN 8
-#define I2C_TIMEOUT 4000
 
 extern uint8_t capsense_chb;
 extern uint8_t capsense_capdac;
 extern uint16_t capsense_offset;
 extern uint16_t capsense_gain;
 
-void i2c_bus_power_cycle(){
-  GPIO_WriteBit(GPIOC, GPIO_Pin_1, 0);
-  Delay(100);
-  GPIO_WriteBit(GPIOC, GPIO_Pin_1, 1);
-  Delay(100);
-  
-  GPIO_WriteBit(GPIOC, GPIO_Pin_1, 0);
-  Delay(100);
-  GPIO_WriteBit(GPIOC, GPIO_Pin_1, 1);
-  Delay(100);
-  
-}
 
 void i2c_bus_reset(void){
   GPIO_InitTypeDef GPIO_InitStruct;
@@ -55,11 +69,10 @@ void init_I2C1(void) {
   // PC1 = I2C VCC
   GPIO_InitStruct.GPIO_Pin = GPIO_Pin_1;
   GPIO_InitStruct.GPIO_Mode = GPIO_Mode_OUT;
-  GPIO_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
+  GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_DOWN;
+  GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(GPIOC, &GPIO_InitStruct);
-  
   GPIO_WriteBit(GPIOC, GPIO_Pin_1, 1);
   
   GPIO_InitStruct.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
@@ -97,9 +110,11 @@ void I2C_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction) {
   uint32_t start = TM_Time;
   // wait until I2C1 is not busy anymore
   while(I2C_GetFlagStatus(I2Cx, I2C_FLAG_BUSY)){
-    if (TM_Time > (start + I2C_TIMEOUT))
-      i2c_errors++;
-      break;
+    if (TM_Time > (start + misc_settings.i2c_timeout)) {
+      global_state.i2c_errors++;
+      //TM_USART_Puts(USART2, "timeout: I2C_FLAG_BUSY\r\n");
+      if (misc_settings.i2c_break_enabled) break;
+    }
   }
 
   // Send I2C1 START condition 
@@ -107,9 +122,11 @@ void I2C_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction) {
     
   // wait for I2C1 EV5 --> Slave has acknowledged start condition
   while(!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT)){
-    if (TM_Time > (start + I2C_TIMEOUT))
-      i2c_errors++;
-      break;
+    if (TM_Time > (start + misc_settings.i2c_timeout)) {
+      global_state.i2c_errors++;
+      //TM_USART_Puts(USART2, "timeout: I2C_EVENT_MASTER_MODE_SELECT\r\n");
+      if (misc_settings.i2c_break_enabled) break;
+    }
   }
       
   // Send slave Address for write 
@@ -122,16 +139,20 @@ void I2C_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction) {
    */ 
   if(direction == I2C_Direction_Transmitter){
       while(!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)){
-        if (TM_Time > (start + I2C_TIMEOUT))
-          i2c_errors++;
-          break;
+        if (TM_Time > (start + misc_settings.i2c_timeout)) {
+          global_state.i2c_errors++;
+          //TM_USART_Puts(USART2, "timeout: I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED\r\n");
+          if (misc_settings.i2c_break_enabled) break;
+        }
     }
   }
   else if(direction == I2C_Direction_Receiver){
       while(!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)){
-        if (TM_Time > (start + I2C_TIMEOUT))
-          i2c_errors++;
-          break;
+        if (TM_Time > (start + misc_settings.i2c_timeout)) {
+          global_state.i2c_errors++;
+          //TM_USART_Puts(USART2, "timeout: I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED\r\n");
+          if (misc_settings.i2c_break_enabled) break;
+        }
       }
   }
 }
@@ -146,9 +167,11 @@ void I2C_write(I2C_TypeDef* I2Cx, uint8_t data) {
   I2C_SendData(I2Cx, data);
   // wait for I2C1 EV8_2 --> byte has been transmitted
   while(!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED)){
-    if (TM_Time > (start + I2C_TIMEOUT))
-      i2c_errors++;
-      break;
+    if (TM_Time > (start + misc_settings.i2c_timeout)) {
+      global_state.i2c_errors++;
+      //TM_USART_Puts(USART2, "timeout: I2C_EVENT_MASTER_BYTE_TRANSMITTED\r\n");
+      if (misc_settings.i2c_break_enabled) break;
+    }
   }
 }
 
@@ -161,9 +184,11 @@ uint8_t I2C_read_ack(I2C_TypeDef* I2Cx) {
   I2C_AcknowledgeConfig(I2Cx, ENABLE);
   // wait until one byte has been received
   while( !I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) ){
-    if (TM_Time > (start + I2C_TIMEOUT))
-      i2c_errors++;
-      break;
+    if (TM_Time > (start + misc_settings.i2c_timeout)) {
+      global_state.i2c_errors++;
+      //TM_USART_Puts(USART2, "timeout: I2C_EVENT_MASTER_BYTE_RECEIVED\r\n");
+      if (misc_settings.i2c_break_enabled) break;
+    }
   }
   // read data from I2C data register and return data byte
   uint8_t data = I2C_ReceiveData(I2Cx);
@@ -182,9 +207,11 @@ uint8_t I2C_read_nack(I2C_TypeDef* I2Cx) {
   I2C_GenerateSTOP(I2Cx, ENABLE);
   // wait until one byte has been received
   while( !I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) ){
-    if (TM_Time > (start + I2C_TIMEOUT))
-      i2c_errors++;
-      break;
+    if (TM_Time > (start + misc_settings.i2c_timeout)) {
+      global_state.i2c_errors++;
+      //TM_USART_Puts(USART2, "timeout: I2C_EVENT_MASTER_BYTE_RECEIVED\r\n");
+      if (misc_settings.i2c_break_enabled) break;
+    }
   }
   // read data from I2C data register and return data byte
   uint8_t data = I2C_ReceiveData(I2Cx);

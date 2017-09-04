@@ -101,8 +101,8 @@ void exti_init(){
 
   // no pin 14
 
-  irqs[SWITCH_UNUSED_15].gpio_port = GPIOE;
-  irqs[SWITCH_UNUSED_15].gpio_pin = GPIO_Pin_15;
+  irqs[SWITCH_WATER_EMPTY].gpio_port = GPIOE;
+  irqs[SWITCH_WATER_EMPTY].gpio_pin = GPIO_Pin_15;
 
   TM_EXTI_Attach(GPIOA, GPIO_Pin_0, TM_EXTI_Trigger_Rising_Falling); // Blue Discovery Button
   TM_EXTI_Attach(GPIOD, GPIO_Pin_1, TM_EXTI_Trigger_Rising_Falling); // Res min
@@ -126,38 +126,47 @@ void reservoir_level_irq_handler(uint16_t GPIO_Pin)
 {
 
   switch (GPIO_Pin) {
-    // tank min
+    // reservoir min
     case GPIO_PIN_1:
       // nc switch to VCC closed -> GPIO_Pin == HIGH
       if (global_state.reservoir_state == NORMAL_IDLE) {
         if (GPIO_ReadInputDataBit(irqs[SWITCH_RES_MIN].gpio_port, GPIO_Pin)){
-          pwms[PWM_FILL_PUMP].duty_percent = 100;
-          global_state.reservoir_state = NORMAL_FILLING;
+          //global_state.reservoir_min = 1;
+          //pwms[PWM_FILL_PUMP].duty_percent = 100;
+          global_state.reservoir_state = NORMAL_MIN;
         }
       }
       break;
 
-    // tank max
+    // reservoir max
     case GPIO_PIN_2:
       // nc switch to VCC opened -> GPIO_Pin == LOW
       if (!misc_settings.fill_to_alarm_level) {
         if (!GPIO_ReadInputDataBit(irqs[SWITCH_RES_MAX].gpio_port, GPIO_Pin)){
-          if (global_state.reservoir_state == DRAIN_CYCLE_FILLING)
-            global_state.reservoir_state == DRAIN_CYCLE_FULL;
+          //pwms[PWM_FILL_PUMP].duty_percent = 0;
+          //global_state.reservoir_max = 1;
 
-          pwms[PWM_FILL_PUMP].duty_percent = 0;
+          if (global_state.reservoir_state == DRAIN_CYCLE_FILLING)
+            global_state.reservoir_state = DRAIN_CYCLE_FULL;
+          else if (global_state.reservoir_state == NORMAL_FILLING)
+            global_state.reservoir_state = NORMAL_MAX;
+            
         }
       }
       break;
 
-    // tank alarm
+    // reservoir alarm
     case GPIO_PIN_3:
       // nc switch to VCC opened -> GPIO_Pin == LOW
       if (!GPIO_ReadInputDataBit(irqs[SWITCH_RES_ALARM].gpio_port, GPIO_Pin)){
-        if (global_state.reservoir_state == DRAIN_CYCLE_FILLING)
-          global_state.reservoir_state == DRAIN_CYCLE_FULL;
+        //pwms[PWM_FILL_PUMP].duty_percent = 0;
+        //global_state.reservoir_alarm = 1;
 
-        pwms[PWM_FILL_PUMP].duty_percent = 0;
+        if (global_state.reservoir_state == DRAIN_CYCLE_FILLING)
+          global_state.reservoir_state = DRAIN_CYCLE_FULL;
+        else if (global_state.reservoir_state == NORMAL_FILLING)
+          global_state.reservoir_state = NORMAL_MAX;
+
       }
       break;
   }
@@ -201,6 +210,21 @@ void dehumidifier_level_irq_handler(uint16_t GPIO_Pin)
       // nc switch to VCC closed -> GPIO_Pin == HIGH
       if (GPIO_ReadInputDataBit(irqs[SWITCH_DEHUMI_MIN].gpio_port, GPIO_Pin))
         pwms[PWM_DEHUMI_PUMP].duty_percent = 0;
+      break;
+  }
+}
+
+void water_storage_level_irq_handler(uint16_t GPIO_Pin)
+{
+
+  switch (GPIO_Pin) {
+    // tank empty
+    case GPIO_PIN_8:
+      // nc switch to VCC closed -> GPIO_Pin == HIGH
+      if (GPIO_ReadInputDataBit(irqs[SWITCH_WATER_EMPTY].gpio_port, GPIO_Pin))
+        global_state.water_tank_empty = 1;
+      else
+        global_state.water_tank_empty = 0;
       break;
   }
 }
@@ -274,6 +298,7 @@ void TM_EXTI_Handler(uint16_t GPIO_Pin){
 
     case GPIO_PIN_15: //
       pin = 15;
+      water_storage_level_irq_handler(GPIO_Pin);
       break;
 
   default:

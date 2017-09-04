@@ -5,7 +5,7 @@
 #define MAX_SENSOR_NAME_LENGTH  64
 #define MAX_OUTPUT_NAME_LENGTH  64
 #define NUM_SENSORS 7
-#define NUM_RES_STATES 11
+#define NUM_RES_STATES 12
 #define NUM_UNITS 8
 #define MAX_UNIT_NAME_LENGTH 9
 #define MAX_STR_LEN 1024
@@ -31,7 +31,7 @@ void print_state(void);
 
 void set_defaults();
 void emergency_stop(uint8_t release);
-void reservoir_drain_cycle_ctrl();
+void reservoir_level_ctrl();
 void reset_errors(void);
 void ph_ctrl(void);
 void pwm_ctrl(void);
@@ -59,11 +59,12 @@ typedef enum resservoir_state {
   DRAIN_CYCLE_FULL,
   DRAIN_CYCLE_NUTRIENTS,
   DRAIN_CYCLE_PHDOWN,
-  NORMAL_MAX,
-  NORMAL_FILLING,
   NORMAL_MIN,
-  NORMAL_IDLE,
+  NORMAL_FILLING,
+  NORMAL_MAX,
+  NORMAL_NUTRIENTS,
   NORMAL_PHDOWN,
+  NORMAL_IDLE,
 } res_states_t;
 
 
@@ -156,22 +157,33 @@ typedef struct nutrient_pump {
 
 nutrient_pump_struct_t nutrient_pumps[3];
 
+
 typedef struct misc_settings {
   float ec_k;
   float ec_temp_coef;
+
   uint16_t ec_r1_ohms;
   uint16_t ec_ra_ohms;
+
   uint16_t ph_cal401;
   uint16_t ph_cal686;
+
   uint32_t res_settling_time_s;
   uint32_t sewage_pump_pause_s;
   uint32_t sewage_pump_run_s;
+
   uint8_t fill_to_alarm_level   : 1;
-  uint8_t                       : 7;
+  uint8_t i2c_break_enabled     : 1;
+  uint8_t                       : 6;
   uint8_t pad[3];
+
+  uint32_t i2c_timeout;
+  uint32_t i2c_max_restarts;
+  uint32_t flow_sensor_lag;
 }misc_settings_struct_t;
 
 misc_settings_struct_t misc_settings;
+
 
 typedef struct global_state {
   uint8_t sewage_pump_blocked   : 1;
@@ -182,8 +194,13 @@ typedef struct global_state {
   uint8_t adding_nutrients      : 1;
   uint8_t reservoir_alarm       : 1;
   uint8_t reservoir_max         : 1;
+
   uint8_t reservoir_min         : 1;
-  uint8_t                       : 7;
+  uint8_t water_tank_empty      : 1;
+  uint8_t                       : 6;
+
+  uint32_t i2c_errors;
+  uint32_t i2c_restarts;
   res_states_t reservoir_state;
   char* datestring;
 }global_state_struct_t;
