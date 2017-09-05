@@ -511,6 +511,27 @@ void ph_ctrl(void){
 
 void pwm_ctrl(void){
   uint8_t i;
+  static uint32_t last_time = TM_Time;
+
+
+  if ((TM_Time - last_time) >= 1) {
+    for (i=0; i<NUM_PWM_OUTPUTS; i++) {
+      uint32_t run_for_ms = pwms[i].run_for_ms;
+      if (run_for_ms != 0xffffffff) {
+        if (run_for_ms > 0) {
+          pwms[i].duty_percent = 100;
+          pwms[i].run_for_ms -= (TM_Time - last_time);
+          if (pwms[i].run_for_ms > run_for_ms)
+            pwms[i].run_for_ms = 0;
+        } else {
+          pwms[i].duty_percent = 0;
+        }
+      }
+    }
+    last_time = TM_Time;
+  }
+
+  // Drive the outputs
   for (i=0; i<NUM_PWM_OUTPUTS; i++) {
     TM_PWM_SetChannelPercent(pwms[i].tim_data, pwms[i].pwm_channel, pwms[i].duty_percent);
   }
@@ -559,26 +580,6 @@ void res_temp_ctrl(void){
 }
 
 void pwm_scheduler(void) {
-  static uint32_t last_time = 0;
-  if (last_time == 0) last_time = TM_Time;
-
-  if ((TM_Time - last_time) >= 1) {
-    uint8_t i;
-    for (i=0; i<NUM_PWM_OUTPUTS; i++) {
-      uint32_t run_for_ms = pwms[i].run_for_ms;
-      if (run_for_ms != 0xffffffff) {
-        if (run_for_ms > 0) {
-          pwms[i].duty_percent = 100;
-          pwms[i].run_for_ms -= (TM_Time - last_time);
-          if (pwms[i].run_for_ms > run_for_ms)
-            pwms[i].run_for_ms = 0;
-        } else {
-          pwms[i].duty_percent = 0;
-        }
-      }
-    }
-    last_time = TM_Time;
-  }
 }
 
 void light_scheduler(void) {
