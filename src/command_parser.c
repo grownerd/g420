@@ -60,6 +60,8 @@ void command_parser(void){
 
     if (strncmp(cmd[0], "release", 7) == 0){
       emergency_stop(1);
+    } else if      (strncmp(cmd[0], "drain", 5) == 0){
+      global_state.drain_cycle_active = 1;
     } else if      (strncmp(cmd[0], "reset", 5) == 0){
       host_cmd_reset(cmd[1], cmd[2]);
     } else if      (strncmp(cmd[0], "save", 4) == 0){
@@ -77,7 +79,11 @@ void command_parser(void){
 }
 
 void host_cmd_get(char * item) {
-  if (strncmp(item, "capsense", 8) == 0)
+  if (strncmp(item, "nutrients", 9) == 0)
+  {
+    print_nutrients();
+  }
+  else if (strncmp(item, "capsense", 8) == 0)
   {
     print_capsense();
   }
@@ -242,7 +248,7 @@ void set_nutrients(char * val) {
   if (strncmp(part[1], "ms", 2) == 0) {
       nutrient_pumps[pump_number].ms_per_ml = atoi(part[2]);
   } else if (strncmp(part[1], "ml", 2) == 0) {
-      nutrient_pumps[pump_number].dosage_ml = atof(part[2]);
+      nutrient_pumps[pump_number].ml_per_10l = atof(part[2]);
   }
 
 }
@@ -279,7 +285,7 @@ void set_ph(char * val) {
       ph_setpoints.ms_per_ml = atof(part[1]);
 
   } else if (strncmp(part[0], "ml", 2) == 0) {
-      ph_setpoints.ml_per_ph = atof(part[1]);
+      ph_setpoints.ml_per_ph_per_10l = atof(part[1]);
 
   }
 

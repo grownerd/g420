@@ -49,13 +49,32 @@ void i2c_bus_reset(void){
   GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(GPIOB, &GPIO_InitStruct);
    
-  GPIO_WriteBit(GPIOB, GPIO_Pin_6, 0);
+  GPIO_WriteBit(GPIOB, GPIO_Pin_7, 0);
   for (i=0; i<17; i++){
     GPIO_WriteBit(GPIOB, GPIO_Pin_6, 1);
     Delay(10);
     GPIO_WriteBit(GPIOB, GPIO_Pin_6, 0);
     Delay(10);
   }
+}
+
+void deinit_I2C1(void) {
+  GPIO_InitTypeDef GPIO_InitStruct;
+
+  I2C_Cmd(I2C1, DISABLE);
+  I2C_DeInit(I2C1);
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
+
+  
+  GPIO_InitStruct.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
+  GPIO_InitStruct.GPIO_Mode = GPIO_Mode_OUT;
+  GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_DOWN;
+  GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  GPIO_WriteBit(GPIOB, GPIO_Pin_6, 0);
+  GPIO_WriteBit(GPIOB, GPIO_Pin_7, 0);
 }
 
 void init_I2C1(void) {

@@ -29,7 +29,7 @@
 #include "command_parser.h"
 #include "flash.h"
 
-TM_PWM_TIM_t TIM1_Data, TIM3_Data, TIM4_Data, TIM9_Data;
+TM_PWM_TIM_t TIM1_Data, TIM3_Data, TIM4_Data, TIM9_Data, TIM12_Data;
 TM_PWMIN_t PWMIN1_Data, PWMIN2_Data;
 
 
@@ -305,7 +305,7 @@ void TM_EXTI_Handler(uint16_t GPIO_Pin){
     break;
   }
   char buf[128];
-  sprintf(buf, "{\"event\": \"%s turned %s\", \"time\": \"%s\"}\r\n", irq_input_names[pin], GPIO_ReadInputDataBit(irqs[pin].gpio_port, GPIO_Pin) ? "on" : "off", global_state.datestring);
+  sprintf(buf, "{\"irq\": \"%s\", \"state\": \"%s\", \"time\": \"%s\"}\r\n", irq_input_names[pin], GPIO_ReadInputDataBit(irqs[pin].gpio_port, GPIO_Pin) ? "on" : "off", global_state.datestring);
   TM_USART_Puts(USART2, buf);
   print_irqs();
 }
@@ -362,10 +362,21 @@ void pwm_init(){
   pwms[PWM_NUTRIENT3_PUMP].pwm_channel = TM_PWM_Channel_2;
   pwms[PWM_NUTRIENT3_PUMP].duty_percent = 0;
   pwms[PWM_NUTRIENT3_PUMP].run_for_ms = 0;
+  pwms[PWM_DEEP_RED_LEDS].tim_data = &TIM12_Data;
+  pwms[PWM_DEEP_RED_LEDS].pwm_channel = TM_PWM_Channel_1;
+  pwms[PWM_DEEP_RED_LEDS].duty_percent = 0;
+  pwms[PWM_DEEP_RED_LEDS].run_for_ms = 0;
+  pwms[PWM_STIRRER_MOTORS].tim_data = &TIM12_Data;
+  pwms[PWM_STIRRER_MOTORS].pwm_channel = TM_PWM_Channel_2;
+  pwms[PWM_STIRRER_MOTORS].duty_percent = 0;
+  pwms[PWM_STIRRER_MOTORS].run_for_ms = 0;
 
   // 14kHz =~ 71us cycle time
   TM_PWM_InitTimer(TIM1, &TIM1_Data, 14000);
   TM_PWM_InitTimer(TIM3, &TIM3_Data, 14000);
+  TM_PWM_InitTimer(TIM4, &TIM4_Data, 14000);
+  TM_PWM_InitTimer(TIM9, &TIM9_Data, 14000);
+  TM_PWM_InitTimer(TIM12, &TIM12_Data, 14000);
   
   TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PE9
   TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_4, TM_PWM_PinsPack_2); // PE14
@@ -376,6 +387,8 @@ void pwm_init(){
   TM_PWM_InitChannel(&TIM4_Data, TM_PWM_Channel_3, TM_PWM_PinsPack_1); // PB8
   TM_PWM_InitChannel(&TIM9_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PE5
   TM_PWM_InitChannel(&TIM9_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_2); // PE6
+  TM_PWM_InitChannel(&TIM12_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_1); // PB14
+  TM_PWM_InitChannel(&TIM12_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_1); // PB15
     
   TM_PWM_SetChannel(pwms[PWM_FILL_PUMP].tim_data, pwms[PWM_FILL_PUMP].pwm_channel, 0);
   TM_PWM_SetChannel(pwms[PWM_DRAIN_PUMP].tim_data, pwms[PWM_DRAIN_PUMP].pwm_channel, 0);
@@ -386,6 +399,8 @@ void pwm_init(){
   TM_PWM_SetChannel(pwms[PWM_NUTRIENT1_PUMP].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
   TM_PWM_SetChannel(pwms[PWM_NUTRIENT2_PUMP].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
   TM_PWM_SetChannel(pwms[PWM_NUTRIENT3_PUMP].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannel(pwms[PWM_DEEP_RED_LEDS].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannel(pwms[PWM_STIRRER_MOTORS].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
 
 }
 

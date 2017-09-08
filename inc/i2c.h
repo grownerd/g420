@@ -15,6 +15,7 @@
  * PROTOTYPES
  */
 
+void deinit_I2C1(void);
 void i2c_bus_reset(void);
 void init_I2C1(void);
 void I2C_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction);

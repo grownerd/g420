@@ -42,7 +42,7 @@ void adc_init(void)
 void read_ph(float* ph_val)
 {
   uint16_t adc_raw = TM_ADC_Read(ADC1, TM_ADC_Channel_9);
-  *ph_val = (float) (map(adc_raw, misc_settings.ph_cal401, misc_settings.ph_cal686, 4010, 6860) / 1000);
+  *ph_val = (float) (map(adc_raw, misc_settings.ph_cal401, misc_settings.ph_cal686, 4010, 6860) / 1000.0f);
 }
 
 

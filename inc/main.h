@@ -5,6 +5,7 @@
 #define MAX_SENSOR_NAME_LENGTH  64
 #define MAX_OUTPUT_NAME_LENGTH  64
 #define NUM_SENSORS 7
+#define NUM_NUTRIENT_PUMPS 3
 #define NUM_RES_STATES 12
 #define NUM_UNITS 8
 #define MAX_UNIT_NAME_LENGTH 9
@@ -28,7 +29,9 @@ void print_ec(void);
 void print_ph(void);
 void print_settings(void);
 void print_state(void);
+void print_nutrients(void);
 
+void delay_ms(__IO uint32_t ms);
 void set_defaults();
 void emergency_stop(uint8_t release);
 void reservoir_level_ctrl();
@@ -40,7 +43,6 @@ void sewage_pump_ctrl(void);
 void nutrient_pump_ctrl(void);
 void exhaust_ctrl(void);
 void light_scheduler(void);
-void pwm_scheduler(void);
 
 extern output_relay_struct_t relays[NUM_RELAYS];
 extern output_pwm_struct_t pwms[NUM_PWM_OUTPUTS];
@@ -70,8 +72,8 @@ typedef enum resservoir_state {
 
 // list onewire sensors first!
 typedef enum names {
-  TEMP_RES,
   TEMP_STORAGE,
+  TEMP_RES,
   TEMP_MAIN,
   HUMI_MAIN,
   PRES_MAIN,
@@ -143,19 +145,19 @@ typedef struct ph_setpoints {
   float min_ph;
   float max_ph;
   uint32_t ms_per_ml;
-  uint32_t ml_per_ph;
+  uint32_t ml_per_ph_per_10l;
 }ph_setpoints_struct_t;
 
 ph_setpoints_struct_t ph_setpoints;
 
 typedef struct nutrient_pump {
   uint32_t ms_per_ml;
-  float dosage_ml;
+  float ml_per_10l;
   uint8_t pwm_output;
   char* name;
 } nutrient_pump_struct_t;
 
-nutrient_pump_struct_t nutrient_pumps[3];
+nutrient_pump_struct_t nutrient_pumps[NUM_NUTRIENT_PUMPS];
 
 
 typedef struct misc_settings {
@@ -168,6 +170,10 @@ typedef struct misc_settings {
   uint16_t ph_cal401;
   uint16_t ph_cal686;
 
+  float nutrient_factor;
+  float res_liters_min;
+  float res_liters_max;
+  float res_liters_alarm;
   uint32_t res_settling_time_s;
   uint32_t sewage_pump_pause_s;
   uint32_t sewage_pump_run_s;
@@ -192,12 +198,13 @@ typedef struct global_state {
   uint8_t drain_cycle_active    : 1;
   uint8_t adjusting_ph          : 1;
   uint8_t adding_nutrients      : 1;
+  uint8_t stirring_nutrients    : 1;
   uint8_t reservoir_alarm       : 1;
-  uint8_t reservoir_max         : 1;
 
+  uint8_t reservoir_max         : 1;
   uint8_t reservoir_min         : 1;
   uint8_t water_tank_empty      : 1;
-  uint8_t                       : 6;
+  uint8_t                       : 5;
 
   uint32_t i2c_errors;
   uint32_t i2c_restarts;
