@@ -60,11 +60,17 @@ void command_parser(void){
 
     if (strncmp(cmd[0], "release", 7) == 0){
       emergency_stop(1);
-    } else if      (strncmp(cmd[0], "drain", 5) == 0){
+    } else if (strncmp(cmd[0], "cycle", 5) == 0){
       global_state.drain_cycle_active = 1;
-    } else if      (strncmp(cmd[0], "reset", 5) == 0){
+    } else if (strncmp(cmd[0], "drain", 5) == 0){
+      global_state.reservoir_state = MANUAL_DRAIN;
+    } else if (strncmp(cmd[0], "reset", 5) == 0){
       host_cmd_reset(cmd[1], cmd[2]);
-    } else if      (strncmp(cmd[0], "save", 4) == 0){
+    } else if (strncmp(cmd[0], "idle", 4) == 0){
+      global_state.reservoir_state = NORMAL_IDLE;
+    } else if (strncmp(cmd[0], "fill", 4) == 0){
+      global_state.reservoir_state = MANUAL_FILL;
+    } else if (strncmp(cmd[0], "save", 4) == 0){
       save_data_to_flash();
     } else if (strncmp(cmd[0], "load", 4) == 0){
       read_flash();

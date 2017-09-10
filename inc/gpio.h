@@ -8,7 +8,7 @@
 
 #define NUM_IRQ_PINS 16
 #define NUM_RELAYS 3
-#define NUM_PWM_OUTPUTS 9
+#define NUM_PWM_OUTPUTS 11
 
 #define RELAY_LIGHT 0
 #define RELAY_EXHAUST 1
@@ -27,11 +27,11 @@
 #define PWM_STIRRER_MOTORS 10
 
 #define SWITCH_BLUE_BUTTON 0
-#define SWITCH_RES_MIN 1
+#define SWITCH_NC_1 1
 #define SWITCH_RES_MAX 2
-#define SWITCH_RES_ALARM 3
-#define SWITCH_UNUSED_4 4
-#define SWITCH_UNUSED_5 5
+#define SWITCH_NC_3 3
+#define SWITCH_RES_MIN 4
+#define SWITCH_RES_ALARM 5
 #define SWITCH_UNUSED_6 6
 #define SWITCH_DEHUMI_MAX 7
 #define SWITCH_DEHUMI_MIN 8

@@ -6,7 +6,7 @@
 #define MAX_OUTPUT_NAME_LENGTH  64
 #define NUM_SENSORS 7
 #define NUM_NUTRIENT_PUMPS 3
-#define NUM_RES_STATES 12
+#define NUM_RES_STATES 16
 #define NUM_UNITS 8
 #define MAX_UNIT_NAME_LENGTH 9
 #define MAX_STR_LEN 1024
@@ -67,6 +67,10 @@ typedef enum resservoir_state {
   NORMAL_NUTRIENTS,
   NORMAL_PHDOWN,
   NORMAL_IDLE,
+  MANUAL_DRAIN,
+  MANUAL_FILL,
+  LEVEL_ERROR,
+  EMERGENCY_STOP,
 } res_states_t;
 
 

@@ -54,6 +54,19 @@ void gpio_init() {
   GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(GPIOD, &GPIO_InitStruct);
    
+#if 0  
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
+  
+  // Pin 8 is used for the EC meter
+  GPIO_InitStruct.GPIO_Pin = GPIO_Pin_9;
+  GPIO_InitStruct.GPIO_Mode = GPIO_Mode_OUT;
+  GPIO_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
+  GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
+  GPIO_Init(GPIOE, &GPIO_InitStruct);
+   
+  GPIO_WriteBit(GPIOE, GPIO_Pin_9, 1);
+#endif
 }
 
 
@@ -61,20 +74,18 @@ void exti_init(){
   irqs[SWITCH_BLUE_BUTTON].gpio_port = GPIOA;
   irqs[SWITCH_BLUE_BUTTON].gpio_pin = GPIO_Pin_0;
 
-  irqs[SWITCH_RES_MIN].gpio_port = GPIOD;
-  irqs[SWITCH_RES_MIN].gpio_pin = GPIO_Pin_1;
+  // no pin 1
 
   irqs[SWITCH_RES_MAX].gpio_port = GPIOE;
   irqs[SWITCH_RES_MAX].gpio_pin = GPIO_Pin_2;
 
-  irqs[SWITCH_RES_ALARM].gpio_port = GPIOD;
-  irqs[SWITCH_RES_ALARM].gpio_pin = GPIO_Pin_3;
+  // no pin 3
 
-  irqs[SWITCH_UNUSED_4].gpio_port = GPIOE;
-  irqs[SWITCH_UNUSED_4].gpio_pin = GPIO_Pin_4;
+  irqs[SWITCH_RES_MIN].gpio_port = GPIOE;
+  irqs[SWITCH_RES_MIN].gpio_pin = GPIO_Pin_4;
 
-  irqs[SWITCH_UNUSED_5].gpio_port = GPIOC;
-  irqs[SWITCH_UNUSED_5].gpio_pin = GPIO_Pin_5;
+  irqs[SWITCH_RES_ALARM].gpio_port = GPIOC;
+  irqs[SWITCH_RES_ALARM].gpio_pin = GPIO_Pin_5;
 
   irqs[SWITCH_UNUSED_6].gpio_port = GPIOC;
   irqs[SWITCH_UNUSED_6].gpio_pin = GPIO_Pin_6;
@@ -105,11 +116,11 @@ void exti_init(){
   irqs[SWITCH_WATER_EMPTY].gpio_pin = GPIO_Pin_15;
 
   TM_EXTI_Attach(GPIOA, GPIO_Pin_0, TM_EXTI_Trigger_Rising_Falling); // Blue Discovery Button
-  TM_EXTI_Attach(GPIOD, GPIO_Pin_1, TM_EXTI_Trigger_Rising_Falling); // Res min
+  // no pin 1
   TM_EXTI_Attach(GPIOE, GPIO_Pin_2, TM_EXTI_Trigger_Rising_Falling); // Res max
-  TM_EXTI_Attach(GPIOD, GPIO_Pin_3, TM_EXTI_Trigger_Rising_Falling); // Res Alarm
-  TM_EXTI_Attach(GPIOE, GPIO_Pin_4, TM_EXTI_Trigger_Rising_Falling);
-  TM_EXTI_Attach(GPIOC, GPIO_Pin_5, TM_EXTI_Trigger_Rising_Falling);
+  // no pin 3
+  TM_EXTI_Attach(GPIOE, GPIO_Pin_4, TM_EXTI_Trigger_Rising_Falling); // Res min
+  TM_EXTI_Attach(GPIOC, GPIO_Pin_5, TM_EXTI_Trigger_Rising_Falling); // Res Alarm
   TM_EXTI_Attach(GPIOC, GPIO_Pin_6, TM_EXTI_Trigger_Rising_Falling);
   TM_EXTI_Attach(GPIOE, GPIO_Pin_7, TM_EXTI_Trigger_Rising_Falling); // Dehumi full
   TM_EXTI_Attach(GPIOE, GPIO_Pin_8, TM_EXTI_Trigger_Rising_Falling); // Dehumi empty
@@ -124,7 +135,7 @@ void exti_init(){
 
 void reservoir_level_irq_handler(uint16_t GPIO_Pin)
 {
-
+#if 0
   switch (GPIO_Pin) {
     // reservoir min
     case GPIO_PIN_1:
@@ -170,11 +181,12 @@ void reservoir_level_irq_handler(uint16_t GPIO_Pin)
       }
       break;
   }
+#endif
 }
 
 void sewage_level_irq_handler(uint16_t GPIO_Pin)
 {
-
+#if 0
   switch (GPIO_Pin) {
     // tank full
     case GPIO_PIN_10:
@@ -192,11 +204,12 @@ void sewage_level_irq_handler(uint16_t GPIO_Pin)
         global_state.sewage_tank_empty = 1;
       break;
   }
+#endif
 }
 
 void dehumidifier_level_irq_handler(uint16_t GPIO_Pin)
 {
-
+#if 0
   switch (GPIO_Pin) {
     // tank full
     case GPIO_PIN_7:
@@ -212,11 +225,12 @@ void dehumidifier_level_irq_handler(uint16_t GPIO_Pin)
         pwms[PWM_DEHUMI_PUMP].duty_percent = 0;
       break;
   }
+#endif
 }
 
 void water_storage_level_irq_handler(uint16_t GPIO_Pin)
 {
-
+#if 0
   switch (GPIO_Pin) {
     // tank empty
     case GPIO_PIN_8:
@@ -227,6 +241,7 @@ void water_storage_level_irq_handler(uint16_t GPIO_Pin)
         global_state.water_tank_empty = 0;
       break;
   }
+#endif
 }
 
 
@@ -326,6 +341,7 @@ void TIM2_IRQHandler(void) {
 
 void pwm_init(){
 
+#if 0
   pwms[PWM_FILL_PUMP].tim_data = &TIM1_Data;
   pwms[PWM_FILL_PUMP].pwm_channel = TM_PWM_Channel_1;
   pwms[PWM_FILL_PUMP].duty_percent = 0;
@@ -370,15 +386,20 @@ void pwm_init(){
   pwms[PWM_STIRRER_MOTORS].pwm_channel = TM_PWM_Channel_2;
   pwms[PWM_STIRRER_MOTORS].duty_percent = 0;
   pwms[PWM_STIRRER_MOTORS].run_for_ms = 0;
+#endif
 
   // 14kHz =~ 71us cycle time
   TM_PWM_InitTimer(TIM1, &TIM1_Data, 14000);
+#if 0
   TM_PWM_InitTimer(TIM3, &TIM3_Data, 14000);
   TM_PWM_InitTimer(TIM4, &TIM4_Data, 14000);
   TM_PWM_InitTimer(TIM9, &TIM9_Data, 14000);
   TM_PWM_InitTimer(TIM12, &TIM12_Data, 14000);
+#endif
   
-  TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PE9
+  uint32_t init_result = 0;
+  init_result += TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PE9
+#if 0
   TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_4, TM_PWM_PinsPack_2); // PE14
   TM_PWM_InitChannel(&TIM3_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PB4
   TM_PWM_InitChannel(&TIM3_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_2); // PB5
@@ -389,18 +410,26 @@ void pwm_init(){
   TM_PWM_InitChannel(&TIM9_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_2); // PE6
   TM_PWM_InitChannel(&TIM12_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_1); // PB14
   TM_PWM_InitChannel(&TIM12_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_1); // PB15
+#endif
     
-  TM_PWM_SetChannel(pwms[PWM_FILL_PUMP].tim_data, pwms[PWM_FILL_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_DRAIN_PUMP].tim_data, pwms[PWM_DRAIN_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_COOLANT_PUMP].tim_data, pwms[PWM_COOLANT_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_SEWAGE_PUMP].tim_data, pwms[PWM_SEWAGE_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_DEHUMI_PUMP].tim_data, pwms[PWM_DEHUMI_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_PHDOWN_PUMP].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_NUTRIENT1_PUMP].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_NUTRIENT2_PUMP].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_NUTRIENT3_PUMP].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_DEEP_RED_LEDS].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannel(pwms[PWM_STIRRER_MOTORS].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
+  if (!init_result)
+    TM_PWM_SetChannelPercent(&TIM1_Data, TM_PWM_Channel_1, 100);
+  else
+    TM_USART_Puts(USART2, "fail");
+  while(1);
+#if 0
+  TM_PWM_SetChannelPercent(pwms[PWM_FILL_PUMP].tim_data, pwms[PWM_FILL_PUMP].pwm_channel, 100);
+  TM_PWM_SetChannelPercent(pwms[PWM_DRAIN_PUMP].tim_data, pwms[PWM_DRAIN_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannelPercent(pwms[PWM_COOLANT_PUMP].tim_data, pwms[PWM_COOLANT_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannelPercent(pwms[PWM_SEWAGE_PUMP].tim_data, pwms[PWM_SEWAGE_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannelPercent(pwms[PWM_DEHUMI_PUMP].tim_data, pwms[PWM_DEHUMI_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannelPercent(pwms[PWM_PHDOWN_PUMP].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannelPercent(pwms[PWM_NUTRIENT1_PUMP].tim_data, pwms[PWM_NUTRIENT1_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannelPercent(pwms[PWM_NUTRIENT2_PUMP].tim_data, pwms[PWM_NUTRIENT2_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannelPercent(pwms[PWM_NUTRIENT3_PUMP].tim_data, pwms[PWM_NUTRIENT3_PUMP].pwm_channel, 0);
+  TM_PWM_SetChannelPercent(pwms[PWM_DEEP_RED_LEDS].tim_data, pwms[PWM_DEEP_RED_LEDS].pwm_channel, 0);
+  TM_PWM_SetChannelPercent(pwms[PWM_STIRRER_MOTORS].tim_data, pwms[PWM_STIRRER_MOTORS].pwm_channel, 0);
+#endif
 
 }
 
