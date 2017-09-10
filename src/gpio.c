@@ -54,7 +54,7 @@ void gpio_init() {
   GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(GPIOD, &GPIO_InitStruct);
    
-#if 0  
+#if 0
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
   
   // Pin 8 is used for the EC meter
@@ -341,7 +341,6 @@ void TIM2_IRQHandler(void) {
 
 void pwm_init(){
 
-#if 0
   pwms[PWM_FILL_PUMP].tim_data = &TIM1_Data;
   pwms[PWM_FILL_PUMP].pwm_channel = TM_PWM_Channel_1;
   pwms[PWM_FILL_PUMP].duty_percent = 0;
@@ -386,20 +385,15 @@ void pwm_init(){
   pwms[PWM_STIRRER_MOTORS].pwm_channel = TM_PWM_Channel_2;
   pwms[PWM_STIRRER_MOTORS].duty_percent = 0;
   pwms[PWM_STIRRER_MOTORS].run_for_ms = 0;
-#endif
 
   // 14kHz =~ 71us cycle time
   TM_PWM_InitTimer(TIM1, &TIM1_Data, 14000);
-#if 0
   TM_PWM_InitTimer(TIM3, &TIM3_Data, 14000);
   TM_PWM_InitTimer(TIM4, &TIM4_Data, 14000);
   TM_PWM_InitTimer(TIM9, &TIM9_Data, 14000);
   TM_PWM_InitTimer(TIM12, &TIM12_Data, 14000);
-#endif
   
-  uint32_t init_result = 0;
-  init_result += TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PE9
-#if 0
+  TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PE9
   TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_4, TM_PWM_PinsPack_2); // PE14
   TM_PWM_InitChannel(&TIM3_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PB4
   TM_PWM_InitChannel(&TIM3_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_2); // PB5
@@ -410,15 +404,8 @@ void pwm_init(){
   TM_PWM_InitChannel(&TIM9_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_2); // PE6
   TM_PWM_InitChannel(&TIM12_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_1); // PB14
   TM_PWM_InitChannel(&TIM12_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_1); // PB15
-#endif
-    
-  if (!init_result)
-    TM_PWM_SetChannelPercent(&TIM1_Data, TM_PWM_Channel_1, 100);
-  else
-    TM_USART_Puts(USART2, "fail");
-  while(1);
-#if 0
-  TM_PWM_SetChannelPercent(pwms[PWM_FILL_PUMP].tim_data, pwms[PWM_FILL_PUMP].pwm_channel, 100);
+
+  TM_PWM_SetChannelPercent(pwms[PWM_FILL_PUMP].tim_data, pwms[PWM_FILL_PUMP].pwm_channel, 0);
   TM_PWM_SetChannelPercent(pwms[PWM_DRAIN_PUMP].tim_data, pwms[PWM_DRAIN_PUMP].pwm_channel, 0);
   TM_PWM_SetChannelPercent(pwms[PWM_COOLANT_PUMP].tim_data, pwms[PWM_COOLANT_PUMP].pwm_channel, 0);
   TM_PWM_SetChannelPercent(pwms[PWM_SEWAGE_PUMP].tim_data, pwms[PWM_SEWAGE_PUMP].pwm_channel, 0);
@@ -429,7 +416,6 @@ void pwm_init(){
   TM_PWM_SetChannelPercent(pwms[PWM_NUTRIENT3_PUMP].tim_data, pwms[PWM_NUTRIENT3_PUMP].pwm_channel, 0);
   TM_PWM_SetChannelPercent(pwms[PWM_DEEP_RED_LEDS].tim_data, pwms[PWM_DEEP_RED_LEDS].pwm_channel, 0);
   TM_PWM_SetChannelPercent(pwms[PWM_STIRRER_MOTORS].tim_data, pwms[PWM_STIRRER_MOTORS].pwm_channel, 0);
-#endif
 
 }
 

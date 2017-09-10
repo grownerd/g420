@@ -83,6 +83,7 @@ char res_state_names[NUM_RES_STATES][MAX_SENSOR_NAME_LENGTH + 1] = {
   "MANUAL_DRAIN",
   "MANUAL_FILL",
   "LEVEL_ERROR",
+  "EMERGENCY_STOP",
 };
 
 char pwm_output_names[NUM_PWM_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1] = {
@@ -155,11 +156,11 @@ int main(void) {
   sprintf(buf, "{\"event\": \"System Startup\", \"time\": \"%s\"}\r\n", global_state.datestring);
   TM_USART_Puts(USART2, buf);
 
-  pwm_init();
 
   gpio_init();  
-  light_scheduler();
+  //light_scheduler();
 
+  pwm_init();
   pwmin_init();
   adc_init();
   exti_init();
