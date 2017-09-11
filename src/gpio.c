@@ -54,18 +54,80 @@ void gpio_init() {
   GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(GPIOD, &GPIO_InitStruct);
    
-#if 0
+#if 1
+
+  gpio_outputs[GPIO_OUTPUT_FILL_PUMP].gpio_port = GPIOE;
+  gpio_outputs[GPIO_OUTPUT_FILL_PUMP].gpio_pin = GPIO_Pin_9;
+  gpio_outputs[GPIO_OUTPUT_FILL_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].gpio_port = GPIOE;
+  gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].gpio_pin = GPIO_Pin_14;
+  gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].gpio_port = GPIOB;
+  gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].gpio_pin = GPIO_Pin_4;
+  gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].run_for_ms = 0xffffffff;
+  gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].gpio_port = GPIOB;
+  gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].gpio_pin = GPIO_Pin_5;
+  gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_DEHUMI_PUMP].gpio_port = GPIOC;
+  gpio_outputs[GPIO_OUTPUT_DEHUMI_PUMP].gpio_pin = GPIO_Pin_8;
+  gpio_outputs[GPIO_OUTPUT_DEHUMI_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_DEHUMI_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].gpio_port = GPIOC;
+  gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].gpio_pin = GPIO_Pin_9;
+  gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT1_PUMP].gpio_port = GPIOB;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT1_PUMP].gpio_pin = GPIO_Pin_8;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT1_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT1_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT2_PUMP].gpio_port = GPIOE;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT2_PUMP].gpio_pin = GPIO_Pin_5;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT2_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT2_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT3_PUMP].gpio_port = GPIOE;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT3_PUMP].gpio_pin = GPIO_Pin_6;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT3_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_NUTRIENT3_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_DEEP_RED_LEDS].gpio_port = GPIOB;
+  gpio_outputs[GPIO_OUTPUT_DEEP_RED_LEDS].gpio_pin = GPIO_Pin_14;
+  gpio_outputs[GPIO_OUTPUT_DEEP_RED_LEDS].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_DEEP_RED_LEDS].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].gpio_port = GPIOB;
+  gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].gpio_pin = GPIO_Pin_15;
+  gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].run_for_ms = 0;
+
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+  
+  GPIO_InitStruct.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_8 | GPIO_Pin_14 | GPIO_Pin_15;
+  GPIO_InitStruct.GPIO_Mode = GPIO_Mode_OUT;
+  GPIO_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
+  GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
+  GPIO_Init(GPIOB, &GPIO_InitStruct);
+   
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+  
+  GPIO_InitStruct.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9;
+  GPIO_InitStruct.GPIO_Mode = GPIO_Mode_OUT;
+  GPIO_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
+  GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
+  GPIO_Init(GPIOC, &GPIO_InitStruct);
+   
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
   
-  // Pin 8 is used for the EC meter
-  GPIO_InitStruct.GPIO_Pin = GPIO_Pin_9;
+  GPIO_InitStruct.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_9 | GPIO_Pin_14;
   GPIO_InitStruct.GPIO_Mode = GPIO_Mode_OUT;
   GPIO_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
   GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
   GPIO_Init(GPIOE, &GPIO_InitStruct);
    
-  GPIO_WriteBit(GPIOE, GPIO_Pin_9, 1);
 #endif
 }
 
@@ -341,6 +403,7 @@ void TIM2_IRQHandler(void) {
 
 void pwm_init(){
 
+#if 0
   pwms[PWM_FILL_PUMP].tim_data = &TIM1_Data;
   pwms[PWM_FILL_PUMP].pwm_channel = TM_PWM_Channel_1;
   pwms[PWM_FILL_PUMP].duty_percent = 0;
@@ -389,9 +452,9 @@ void pwm_init(){
   // 14kHz =~ 71us cycle time
   TM_PWM_InitTimer(TIM1, &TIM1_Data, 14000);
   TM_PWM_InitTimer(TIM3, &TIM3_Data, 14000);
-  TM_PWM_InitTimer(TIM4, &TIM4_Data, 14000);
-  TM_PWM_InitTimer(TIM9, &TIM9_Data, 14000);
-  TM_PWM_InitTimer(TIM12, &TIM12_Data, 14000);
+  //TM_PWM_InitTimer(TIM4, &TIM4_Data, 14000);
+  //TM_PWM_InitTimer(TIM9, &TIM9_Data, 14000);
+  //TM_PWM_InitTimer(TIM12, &TIM12_Data, 14000);
   
   TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PE9
   TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_4, TM_PWM_PinsPack_2); // PE14
@@ -417,6 +480,7 @@ void pwm_init(){
   TM_PWM_SetChannelPercent(pwms[PWM_DEEP_RED_LEDS].tim_data, pwms[PWM_DEEP_RED_LEDS].pwm_channel, 0);
   TM_PWM_SetChannelPercent(pwms[PWM_STIRRER_MOTORS].tim_data, pwms[PWM_STIRRER_MOTORS].pwm_channel, 0);
 
+#endif
 }
 
 void switch_relay(output_relay_struct_t * relay, uint8_t action){

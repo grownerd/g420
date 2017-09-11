@@ -30,7 +30,7 @@ void host_cmd_set(char * item, char * val);
 void host_cmd_reset(char * item, char * val);
 void set_light_time(char * val);
 void set_minmax(char * val, uint8_t minmax);
-void set_pwm(char * val);
+void set_gpio_output(char * val);
 void set_relay(char * val);
 void set_ph(char * val);
 void set_nutrients(char * val);
@@ -133,9 +133,9 @@ void host_cmd_get(char * item) {
   {
     print_env();
   }
-  else if (strncmp(item, "pwm", 3) == 0)
+  else if (strncmp(item, "gpio", 3) == 0)
   {
-    print_pwm();
+    print_gpio_outputs();
   }
   else if (strncmp(item, "rtc", 3) == 0)
   {
@@ -149,7 +149,7 @@ void host_cmd_get(char * item) {
     print_exhaust();
     print_coolant();
     print_errors();
-    print_pwm();
+    print_gpio_outputs();
     print_relays();
     print_capsense();
     print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
@@ -214,11 +214,11 @@ void host_cmd_set(char * item, char * val) {
   {
     set_minmax(val, 1);
   }
-  else if (strncmp(item, "pwm", 3) == 0)
+  else if (strncmp(item, "gpio", 3) == 0)
   {
-    set_pwm(val);
-    pwm_ctrl();
-    print_pwm();
+    set_gpio_output(val);
+    gpio_ctrl();
+    print_gpio_outputs();
   }
   else if (strncmp(item, "ph", 2) == 0)
   {
@@ -426,7 +426,7 @@ void set_minmax(char * val, uint8_t minmax) {
   }
 }
 
-void set_pwm(char * val) {
+void set_gpio_output(char * val) {
   char part[2][16];
 
   uint8_t part_counter = 0;
@@ -447,33 +447,33 @@ void set_pwm(char * val) {
   }
   part[part_counter][j] = '\0';
 
-  uint8_t pwm_val = atoi(part[1]);
-  if (pwm_val > 100)
-    pwm_val = 100;
+  uint8_t gpio_val = atoi(part[1]);
+  if (gpio_val > 1)
+    gpio_val = 1;
 
-    sprintf(buf, "{\"event\": \"Setting PWM Channel %s to %d%%\", \"time\": \"%s\"}\r\n", part[0], pwm_val, global_state.datestring);
+    sprintf(buf, "{\"event\": \"Setting GPIO Output %s to %d%%\", \"time\": \"%s\"}\r\n", part[0], gpio_val, global_state.datestring);
 
-  //snprintf(buf, MAX_STR_LEN, "Setting PWM Channel \"%s\" to %d%%\r\n",part[0], pwm_val);
+  //snprintf(buf, MAX_STR_LEN, "Setting PWM Channel \"%s\" to %d%%\r\n",part[0], gpio_val);
   TM_USART_Puts(USART2, buf);
 
   if (strncmp(part[0], "fill", 4) == 0) {
-    pwms[PWM_FILL_PUMP].duty_percent = pwm_val;
+    gpio_outputs[GPIO_OUTPUT_FILL_PUMP].desired_state = gpio_val;
   } else if (strncmp(part[0], "drain", 5) == 0) {
-    pwms[PWM_DRAIN_PUMP].duty_percent = pwm_val;
+    gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].desired_state = gpio_val;
   } else if (strncmp(part[0], "coolant", 7) == 0) {
-    pwms[PWM_COOLANT_PUMP].duty_percent = pwm_val;
+    gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state = gpio_val;
   } else if (strncmp(part[0], "sewage", 6) == 0) {
-    pwms[PWM_SEWAGE_PUMP].duty_percent = pwm_val;
+    gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].desired_state = gpio_val;
   } else if (strncmp(part[0], "dehumi", 6) == 0) {
-    pwms[PWM_DEHUMI_PUMP].duty_percent = pwm_val;
+    gpio_outputs[GPIO_OUTPUT_DEHUMI_PUMP].desired_state = gpio_val;
   } else if (strncmp(part[0], "phdown", 6) == 0) {
-    pwms[PWM_PHDOWN_PUMP].duty_percent = pwm_val;
+    gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].desired_state = gpio_val;
   } else if (strncmp(part[0], "nute1", 6) == 0) {
-    pwms[PWM_NUTRIENT1_PUMP].duty_percent = pwm_val;
+    gpio_outputs[GPIO_OUTPUT_NUTRIENT1_PUMP].desired_state = gpio_val;
   } else if (strncmp(part[0], "nute2", 6) == 0) {
-    pwms[PWM_NUTRIENT2_PUMP].duty_percent = pwm_val;
+    gpio_outputs[GPIO_OUTPUT_NUTRIENT2_PUMP].desired_state = gpio_val;
   } else if (strncmp(part[0], "nute3", 6) == 0) {
-    pwms[PWM_NUTRIENT3_PUMP].duty_percent = pwm_val;
+    gpio_outputs[GPIO_OUTPUT_NUTRIENT3_PUMP].desired_state = gpio_val;
   }
 }
 

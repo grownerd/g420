@@ -30,7 +30,7 @@
 #include "flash.h"
 
 output_relay_struct_t relays[NUM_RELAYS];
-output_pwm_struct_t pwms[NUM_PWM_OUTPUTS];
+gpio_output_struct_t gpio_outputs[NUM_GPIO_OUTPUTS];
 irq_switch_struct_t irqs[NUM_IRQ_PINS];
 uint32_t capsense_data[2];
 
@@ -86,7 +86,7 @@ char res_state_names[NUM_RES_STATES][MAX_SENSOR_NAME_LENGTH + 1] = {
   "EMERGENCY_STOP",
 };
 
-char pwm_output_names[NUM_PWM_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1] = {
+char gpio_output_names[NUM_GPIO_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1] = {
   "Fill Pump",
   "Drain Pump",
   "Coolant Pump",
@@ -153,7 +153,7 @@ int main(void) {
 
 
   gpio_init();  
-  pwm_init();
+  //pwm_init();
   pwmin_init();
   adc_init();
   exti_init();
@@ -292,7 +292,7 @@ int main(void) {
     sewage_pump_ctrl();
     ph_ctrl();
     reservoir_level_ctrl();
-    pwm_ctrl();
+    gpio_ctrl();
 
 
     //Reset Watchdog
@@ -301,16 +301,16 @@ int main(void) {
 }
 
 void set_defaults(){
-  nutrient_pumps[0].name = pwm_output_names[PWM_NUTRIENT1_PUMP];
-  nutrient_pumps[0].pwm_output = PWM_NUTRIENT1_PUMP;
+  nutrient_pumps[0].name = gpio_output_names[GPIO_OUTPUT_NUTRIENT1_PUMP];
+  nutrient_pumps[0].gpio_output = GPIO_OUTPUT_NUTRIENT1_PUMP;
   nutrient_pumps[0].ms_per_ml = 10000;
   nutrient_pumps[0].ml_per_10l = 5;
-  nutrient_pumps[1].name = pwm_output_names[PWM_NUTRIENT2_PUMP];
-  nutrient_pumps[1].pwm_output = PWM_NUTRIENT2_PUMP;
+  nutrient_pumps[1].name = gpio_output_names[GPIO_OUTPUT_NUTRIENT2_PUMP];
+  nutrient_pumps[1].gpio_output = GPIO_OUTPUT_NUTRIENT2_PUMP;
   nutrient_pumps[1].ms_per_ml = 10000;
   nutrient_pumps[1].ml_per_10l = 5;
-  nutrient_pumps[2].name = pwm_output_names[PWM_NUTRIENT3_PUMP];
-  nutrient_pumps[2].pwm_output = PWM_NUTRIENT3_PUMP;
+  nutrient_pumps[2].name = gpio_output_names[GPIO_OUTPUT_NUTRIENT3_PUMP];
+  nutrient_pumps[2].gpio_output = GPIO_OUTPUT_NUTRIENT3_PUMP;
   nutrient_pumps[2].ms_per_ml = 10000;
   nutrient_pumps[2].ml_per_10l = 5;
 
@@ -375,10 +375,10 @@ void emergency_stop(uint8_t release){
   }
 
   uint8_t i;
-  for (i=0; i < NUM_PWM_OUTPUTS; i++){
-    pwms[i].run_for_ms = runfor;
-    pwms[i].duty_percent = 0;
-    TM_PWM_SetChannelPercent(pwms[i].tim_data, pwms[i].pwm_channel, pwms[i].duty_percent);
+  for (i=0; i < NUM_GPIO_OUTPUTS; i++){
+    gpio_outputs[i].run_for_ms = runfor;
+    gpio_outputs[i].desired_state = 0;
+    GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
   }
 
   TM_USART_Puts(USART2, buf);
@@ -414,8 +414,8 @@ void reservoir_level_ctrl()
           sprintf(buf, "{\"error\": \"Water Tank empty\", \"time\": \"%s\"}\r\n", global_state.datestring);
           global_state.drain_cycle_active = 0;
         } else {
-          pwms[PWM_DRAIN_PUMP].run_for_ms = 5000;
-          pwms[PWM_FILL_PUMP].run_for_ms = 0;
+          gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 5000;
+          gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
           global_state.stirring_nutrients = 1;
           global_state.reservoir_state = DRAIN_CYCLE_DRAINING;
           sprintf(buf, "{\"event\": \"Reservoir Draining started\", \"time\": \"%s\"}\r\n", global_state.datestring);
@@ -427,8 +427,8 @@ void reservoir_level_ctrl()
         global_state.reservoir_state = NORMAL_MIN;
       }
 
-      pwms[PWM_DRAIN_PUMP].run_for_ms = 0;
-      pwms[PWM_FILL_PUMP].run_for_ms = 0;
+      gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 0;
+      gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
       break;
 
     case NORMAL_MIN:
@@ -450,7 +450,7 @@ void reservoir_level_ctrl()
     case NORMAL_FILLING:
       if (((global_state.reservoir_max) && (!global_state.reservoir_alarm) && (misc_settings.fill_to_alarm_level))
       || ((!global_state.reservoir_max) && (!global_state.reservoir_alarm))){
-        pwms[PWM_FILL_PUMP].run_for_ms = 5000;
+        gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
       } else {
         global_state.reservoir_state = NORMAL_MAX;
       }
@@ -468,7 +468,7 @@ void reservoir_level_ctrl()
 
       if (((global_state.reservoir_max) && (!global_state.reservoir_alarm) && (misc_settings.fill_to_alarm_level))
       || ((!global_state.reservoir_max) && (!global_state.reservoir_alarm))){
-        pwms[PWM_FILL_PUMP].run_for_ms = 5000;
+        gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
       } else {
         global_state.reservoir_state = DRAIN_CYCLE_FULL;
       }
@@ -477,7 +477,7 @@ void reservoir_level_ctrl()
     case NORMAL_MAX:
       global_state.reservoir_state = NORMAL_NUTRIENTS;
       sprintf(buf, "{\"event\": \"Reservoir topping up completed\", \"time\": \"%s\"}\r\n", global_state.datestring);
-      pwms[PWM_FILL_PUMP].run_for_ms = 0;
+      gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
       break;
 
     case DRAIN_CYCLE_FULL:
@@ -492,13 +492,13 @@ void reservoir_level_ctrl()
       if (TM_Time < (drain_time + misc_settings.flow_sensor_lag))
         break;
 
-      pwms[PWM_DRAIN_PUMP].run_for_ms = 5000;
+      gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 5000;
       TM_PWMIN_Get(&PWMIN1_Data);
       if (PWMIN1_Data.Frequency > 0) {
         print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
       } else {
         global_state.reservoir_state = DRAIN_CYCLE_EMPTY;
-        pwms[PWM_DRAIN_PUMP].run_for_ms = 0;
+        gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 0;
         sprintf(buf, "{\"event\": \"Reservoir Draining complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
       }
       drain_time = TM_Time;
@@ -507,15 +507,15 @@ void reservoir_level_ctrl()
     case DRAIN_CYCLE_EMPTY:
       global_state.reservoir_state = DRAIN_CYCLE_FILLING;
       sprintf(buf, "{\"event\": \"Reservoir Filling started\", \"time\": \"%s\"}\r\n", global_state.datestring);
-      pwms[PWM_FILL_PUMP].run_for_ms = 5000;
+      gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
       break;
 
     case MANUAL_DRAIN:
-      pwms[PWM_DRAIN_PUMP].run_for_ms = 1000;
+      gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 1000;
       break;
 
     case MANUAL_FILL:
-      pwms[PWM_FILL_PUMP].run_for_ms = 1000;
+      gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 1000;
       break;
 
     case LEVEL_ERROR:
@@ -562,11 +562,11 @@ void nutrient_pump_ctrl(void){
         }
 
         float dosage_ml = (nutrient_pumps[i].ml_per_10l * misc_settings.nutrient_factor) / 10 * liters_added;
-        uint8_t pwm_out = nutrient_pumps[i].pwm_output;
+        uint8_t gpio_out = nutrient_pumps[i].gpio_output;
 
-        pwms[pwm_out].run_for_ms = dosage_ml * nutrient_pumps[i].ms_per_ml;
+        gpio_outputs[gpio_out].run_for_ms = dosage_ml * nutrient_pumps[i].ms_per_ml;
 
-        sprintf(buf, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", pwm_output_names[pwm_out], pwms[pwm_out].run_for_ms, global_state.datestring);
+        sprintf(buf, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out], gpio_outputs[gpio_out].run_for_ms, global_state.datestring);
         TM_USART_Puts(USART2, buf);
 
         last_time = TM_Time + (misc_settings.res_settling_time_s * 1000);
@@ -598,10 +598,10 @@ void sewage_pump_ctrl(void){
     if (!last_time) last_time = TM_Time;
 
     if ((TM_Time - last_time) >= ((misc_settings.sewage_pump_pause_s * 1000) + (misc_settings.sewage_pump_run_s * 1000))) {
-      pwms[PWM_SEWAGE_PUMP].run_for_ms = misc_settings.sewage_pump_run_s * 1000;
+      gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].run_for_ms = misc_settings.sewage_pump_run_s * 1000;
       last_time = TM_Time;
     } else if (global_state.sewage_tank_full) {
-      pwms[PWM_SEWAGE_PUMP].run_for_ms = misc_settings.sewage_pump_run_s * 1000;
+      gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].run_for_ms = misc_settings.sewage_pump_run_s * 1000;
     }
   }
 }
@@ -618,37 +618,34 @@ void ph_ctrl(void){
 
       float ml_to_add = diff_to_min * ph_setpoints.ml_per_ph_per_10l;
       uint32_t ms_to_run = ml_to_add * ph_setpoints.ms_per_ml;
-      pwms[PWM_PHDOWN_PUMP].run_for_ms = ms_to_run;
+      gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = ms_to_run;
     }
     last_time = TM_Time;
   }
 
   if (((global_state.reservoir_state == DRAIN_CYCLE_PHDOWN) ||
     (global_state.reservoir_state == NORMAL_PHDOWN)) &&
-    (pwms[PWM_PHDOWN_PUMP].run_for_ms == 0))
+    (gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms == 0))
       global_state.reservoir_state = NORMAL_IDLE;
 }
 
-void pwm_ctrl(void){
-  char buf[MAX_STR_LEN];
-  memset(buf, 0, sizeof(buf));
-
+void gpio_ctrl(void){
   uint8_t i;
   static uint32_t last_time = 0;
   if (last_time == 0) last_time = TM_Time;
 
   // Schedule outputs to run for a specific time
   if ((TM_Time - last_time) >= 1) {
-    for (i=0; i<NUM_PWM_OUTPUTS; i++) {
-      uint32_t run_for_ms = pwms[i].run_for_ms;
+    for (i=0; i<NUM_GPIO_OUTPUTS; i++) {
+      uint32_t run_for_ms = gpio_outputs[i].run_for_ms;
       if (run_for_ms != 0xffffffff) {
         if (run_for_ms > 0) {
-          pwms[i].duty_percent = 100;
-          pwms[i].run_for_ms -= (TM_Time - last_time);
-          if (pwms[i].run_for_ms > run_for_ms)
-            pwms[i].run_for_ms = 0;
+          gpio_outputs[i].desired_state = 1;
+          gpio_outputs[i].run_for_ms -= (TM_Time - last_time);
+          if (gpio_outputs[i].run_for_ms > run_for_ms)
+            gpio_outputs[i].run_for_ms = 0;
         } else {
-          pwms[i].duty_percent = 0;
+          gpio_outputs[i].desired_state = 0;
         }
       }
     }
@@ -657,62 +654,57 @@ void pwm_ctrl(void){
 
 
   // Drive the outputs
-  for (i=0; i<NUM_PWM_OUTPUTS; i++) {
+  for (i=0; i<NUM_GPIO_OUTPUTS; i++) {
 
     // Sanity check if the pumps are safe to run
     // Break on safe conditions, otherwise fall through and disable the output
     switch(i){
-      case PWM_FILL_PUMP:
+      case GPIO_OUTPUT_FILL_PUMP:
         if ((!global_state.reservoir_alarm) && (misc_settings.fill_to_alarm_level))
           break;
         else if (!global_state.reservoir_max)
           break;
-        sprintf(buf, "{\"error\": \"Not safe to run Fill Pump!\", \"time\": \"%s\"}\r\n", global_state.datestring);
 
-      case PWM_DRAIN_PUMP:
+      case GPIO_OUTPUT_DRAIN_PUMP:
         if (!global_state.sewage_tank_full)
           break;
-        sprintf(buf, "{\"error\": \"Not safe to run Drain Pump!\", \"time\": \"%s\"}\r\n", global_state.datestring);
 
-      case PWM_DEHUMI_PUMP:
+      case GPIO_OUTPUT_DEHUMI_PUMP:
         if (!global_state.sewage_tank_full)
           break;
-        sprintf(buf, "{\"error\": \"Not safe to run Dehumidifier Pump!\", \"time\": \"%s\"}\r\n", global_state.datestring);
 
-      case PWM_SEWAGE_PUMP:
+      case GPIO_OUTPUT_SEWAGE_PUMP:
         if ((!global_state.sewage_pump_blocked) && (!global_state.sewage_tank_empty))
           break;
-        sprintf(buf, "{\"error\": \"Not safe to run Sewage Pump!\", \"time\": \"%s\"}\r\n", global_state.datestring);
 
-      case PWM_COOLANT_PUMP:
+      case GPIO_OUTPUT_COOLANT_PUMP:
         break;
 
-      case PWM_PHDOWN_PUMP:
+      case GPIO_OUTPUT_PHDOWN_PUMP:
         break;
 
-      case PWM_NUTRIENT1_PUMP:
+      case GPIO_OUTPUT_NUTRIENT1_PUMP:
         break;
 
-      case PWM_NUTRIENT2_PUMP:
+      case GPIO_OUTPUT_NUTRIENT2_PUMP:
         break;
 
-      case PWM_NUTRIENT3_PUMP:
+      case GPIO_OUTPUT_NUTRIENT3_PUMP:
         break;
 
-      case PWM_DEEP_RED_LEDS:
+      case GPIO_OUTPUT_DEEP_RED_LEDS:
         break;
 
-      case PWM_STIRRER_MOTORS:
+      case GPIO_OUTPUT_STIRRER_MOTORS:
         break;
 
       default:
-        pwms[i].duty_percent = 0;
+        gpio_outputs[i].desired_state = 0;
     }
 
-    TM_USART_Puts(USART2, buf);
-    // finally set the actual PWM if we are not in emergency stop mode
+    // finally set the actual GPIO if we are not in emergency stop mode
     if (global_state.reservoir_state != EMERGENCY_STOP)
-      TM_PWM_SetChannelPercent(pwms[i].tim_data, pwms[i].pwm_channel, pwms[i].duty_percent);
+      GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
   }
 }
 
@@ -739,7 +731,7 @@ void exhaust_ctrl(void){
 
 void res_temp_ctrl(void){
 
-  uint8_t current_state = pwms[PWM_COOLANT_PUMP].duty_percent;
+  uint8_t current_state = gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state;
   uint8_t desired_state = current_state;
 
   if (ds18b20_sensors[TEMP_RES].value > coolant_setpoints.max_temp)
@@ -749,8 +741,8 @@ void res_temp_ctrl(void){
     desired_state = 0;
 
   if (desired_state != current_state) {
-    pwms[PWM_COOLANT_PUMP].duty_percent = desired_state;
-    pwms[PWM_COOLANT_PUMP].run_for_ms = 0xffffffff;
+    gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state = desired_state;
+    gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].run_for_ms = 0xffffffff;
     char buf[MAX_STR_LEN];
     memset(buf, 0, sizeof(buf));
     sprintf(buf, "{\"event\": \"Coolant pump turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
@@ -849,7 +841,7 @@ void print_coolant(void) {
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
 
-  coolant_setpoints.state = pwms[PWM_COOLANT_PUMP].duty_percent;
+  coolant_setpoints.state = gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state;
   sprintf(buf, "{\"name\":\"Coolant Control\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
     coolant_setpoints.max_temp,
     coolant_setpoints.min_temp,
@@ -925,20 +917,19 @@ void reset_errors(void) {
   }
 }
 
-void print_pwm(void){
+void print_gpio_outputs(void){
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
   uint8_t i;
 
-  TM_USART_Puts(USART2, "{\"name\":\"PWM Channels\",\"content\":[\r\n");
+  TM_USART_Puts(USART2, "{\"name\":\"GPIO Output Channels\",\"content\":[\r\n");
   
-  for (i=0; i<NUM_PWM_OUTPUTS; i++) {
+  for (i=0; i<NUM_GPIO_OUTPUTS; i++) {
 
-    uint16_t chan = pwms[i].pwm_channel;
-    
-    sprintf(buf, "\t{\"name\":\"%s\", \"percent\":%d,\"period\":%d}", pwm_output_names[i], pwms[i].duty_percent, pwms[i].tim_data->CH_Periods[chan]);
+    uint8_t pinstate = GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin);
+    sprintf(buf, "\t{\"name\":\"%s\", \"state\":%d}", gpio_output_names[i], pinstate);
     TM_USART_Puts(USART2, buf);
-    if (i == NUM_PWM_OUTPUTS -1)
+    if (i == NUM_GPIO_OUTPUTS -1)
       TM_USART_Puts(USART2, "\r\n");
     else
       TM_USART_Puts(USART2, ",\r\n");
@@ -960,7 +951,7 @@ void print_nutrients(void){
     
     sprintf(buf, "\t{\"name\":\"%s\", \"ms_per_ml\":%d,\"ml_per_10l\":%f}", nutrient_pumps[i].name, nutrient_pumps[i].ms_per_ml, nutrient_pumps[i].ml_per_10l);
     TM_USART_Puts(USART2, buf);
-    if (i == NUM_PWM_OUTPUTS -1)
+    if (i == NUM_GPIO_OUTPUTS -1)
       TM_USART_Puts(USART2, "\r\n");
     else
       TM_USART_Puts(USART2, ",\r\n");

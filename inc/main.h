@@ -20,7 +20,7 @@ void print_errors(void);
 void print_light(void);
 void print_exhaust(void);
 void print_relays(void);
-void print_pwm(void);
+void print_gpio_outputs(void);
 void print_coolant(void);
 void print_capsense(void);
 void print_pwmin(uint8_t id, float freq);
@@ -37,7 +37,7 @@ void emergency_stop(uint8_t release);
 void reservoir_level_ctrl();
 void reset_errors(void);
 void ph_ctrl(void);
-void pwm_ctrl(void);
+void gpio_ctrl(void);
 void res_temp_ctrl(void);
 void sewage_pump_ctrl(void);
 void nutrient_pump_ctrl(void);
@@ -45,11 +45,11 @@ void exhaust_ctrl(void);
 void light_scheduler(void);
 
 extern output_relay_struct_t relays[NUM_RELAYS];
-extern output_pwm_struct_t pwms[NUM_PWM_OUTPUTS];
+extern gpio_output_struct_t gpio_outputs[NUM_GPIO_OUTPUTS];
 extern irq_switch_struct_t irqs[NUM_IRQ_PINS];
 extern char irq_input_names[NUM_IRQ_PINS][MAX_SENSOR_NAME_LENGTH + 1];
 extern char sensor_names[NUM_SENSORS][MAX_SENSOR_NAME_LENGTH + 1];
-extern char pwm_output_names[NUM_PWM_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1];
+extern char gpio_output_names[NUM_GPIO_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1];
 extern char unit_names[NUM_UNITS][MAX_UNIT_NAME_LENGTH + 1];
 
 extern struct bme280_t bme280_1;
@@ -127,7 +127,7 @@ typedef struct coolant_setpoints {
   float max_temp;
   float min_temp;
   uint8_t state;
-  output_pwm_struct_t * pwm_output;
+  gpio_output_struct_t * gpio_output;
   uint8_t pad[3];
 }coolant_setpoints_struct_t ;
 
@@ -157,7 +157,7 @@ ph_setpoints_struct_t ph_setpoints;
 typedef struct nutrient_pump {
   uint32_t ms_per_ml;
   float ml_per_10l;
-  uint8_t pwm_output;
+  uint8_t gpio_output;
   char* name;
 } nutrient_pump_struct_t;
 

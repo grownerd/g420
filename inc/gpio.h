@@ -8,23 +8,23 @@
 
 #define NUM_IRQ_PINS 16
 #define NUM_RELAYS 3
-#define NUM_PWM_OUTPUTS 11
+#define NUM_GPIO_OUTPUTS 11
 
 #define RELAY_LIGHT 0
 #define RELAY_EXHAUST 1
 #define RELAY_AUX 2
 
-#define PWM_FILL_PUMP 0
-#define PWM_DRAIN_PUMP 1
-#define PWM_COOLANT_PUMP 2
-#define PWM_SEWAGE_PUMP 3
-#define PWM_DEHUMI_PUMP 4
-#define PWM_PHDOWN_PUMP 5
-#define PWM_NUTRIENT1_PUMP 6
-#define PWM_NUTRIENT2_PUMP 7
-#define PWM_NUTRIENT3_PUMP 8
-#define PWM_DEEP_RED_LEDS 9
-#define PWM_STIRRER_MOTORS 10
+#define GPIO_OUTPUT_FILL_PUMP 0
+#define GPIO_OUTPUT_DRAIN_PUMP 1
+#define GPIO_OUTPUT_COOLANT_PUMP 2
+#define GPIO_OUTPUT_SEWAGE_PUMP 3
+#define GPIO_OUTPUT_DEHUMI_PUMP 4
+#define GPIO_OUTPUT_PHDOWN_PUMP 5
+#define GPIO_OUTPUT_NUTRIENT1_PUMP 6
+#define GPIO_OUTPUT_NUTRIENT2_PUMP 7
+#define GPIO_OUTPUT_NUTRIENT3_PUMP 8
+#define GPIO_OUTPUT_DEEP_RED_LEDS 9
+#define GPIO_OUTPUT_STIRRER_MOTORS 10
 
 #define SWITCH_BLUE_BUTTON 0
 #define SWITCH_NC_1 1
@@ -65,12 +65,12 @@ typedef struct output_relay {
   GPIO_TypeDef *gpio_port;
 }output_relay_struct_t ;
 
-typedef struct output_pwm {
-  TM_PWM_TIM_t * tim_data;
-  TM_PWM_Channel_t pwm_channel;
-  uint8_t duty_percent;
+typedef struct gpio_output {
+  uint16_t gpio_pin;
+  GPIO_TypeDef *gpio_port;
+  uint8_t desired_state;
   uint32_t run_for_ms;
-}output_pwm_struct_t ;
+}gpio_output_struct_t ;
 
 
 #if 1
