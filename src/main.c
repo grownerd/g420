@@ -144,12 +144,7 @@ int main(void) {
   set_defaults();
 
   SystemInit();
-  TM_DELAY_Init();
-  TM_DISCO_LedInit();
-  TM_DISCO_LedOn(LED_ORANGE);
   TM_RTC_Init(TM_RTC_ClockSource_Internal);
-  TM_RTC_Interrupts(TM_RTC_Int_1s);
-  
   update_datestring();
   
   TM_USART_Init(USART2, TM_USART_PinsPack_1, 115200);
@@ -158,13 +153,16 @@ int main(void) {
 
 
   gpio_init();  
-  //light_scheduler();
-
   pwm_init();
   pwmin_init();
   adc_init();
   exti_init();
     
+  TM_DELAY_Init();
+  TM_DISCO_LedInit();
+  TM_DISCO_LedOn(LED_ORANGE);
+  TM_RTC_Interrupts(TM_RTC_Int_1s);
+  
   // this can take some time, so do it before the watchdog init
   onewire_init();
 
