@@ -83,7 +83,7 @@ char res_state_names[NUM_RES_STATES][MAX_SENSOR_NAME_LENGTH + 1] = {
   "MANUAL_DRAIN",
   "MANUAL_FILL",
   "LEVEL_ERROR",
-  "EMERGENCY_STOP",
+  "EMERGENCY STOP",
 };
 
 char gpio_output_names[NUM_GPIO_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1] = {
@@ -539,11 +539,15 @@ void nutrient_pump_ctrl(void){
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
 
-  if (global_state.adding_nutrients){
-    static uint32_t last_time = 0;
-    //if (!last_time) last_time = TM_Time;
+  if (global_state.stirring_nutrients){
+    gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state = 1;
+    gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].run_for_ms = 0xffffffff;
+  }else if (global_state.adding_nutrients){
+    gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state = 0;
+    static uint32_t next_time = 0;
+    if (!next_time) next_time = TM_Time + 5000;
 
-    if ((int32_t)(TM_Time - last_time) >= (misc_settings.res_settling_time_s * 1000)) {
+    if (TM_Time >= next_time) {
       static uint8_t i = 0;
 
       if (i < NUM_NUTRIENT_PUMPS) {
@@ -569,19 +573,19 @@ void nutrient_pump_ctrl(void){
         sprintf(buf, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out], gpio_outputs[gpio_out].run_for_ms, global_state.datestring);
         TM_USART_Puts(USART2, buf);
 
-        last_time = TM_Time + (misc_settings.res_settling_time_s * 1000);
+        next_time = TM_Time + (dosage_ml * nutrient_pumps[i].ms_per_ml) + 5000;
+        i++;
 
       } else{
-        if (global_state.reservoir_state == DRAIN_CYCLE_NUTRIENTS)
+        if ((global_state.reservoir_state == DRAIN_CYCLE_NUTRIENTS) || (global_state.reservoir_state == DRAIN_CYCLE_FILLING))
           global_state.reservoir_state = DRAIN_CYCLE_PHDOWN;
-        else if (global_state.reservoir_state == NORMAL_NUTRIENTS)
+        else if ((global_state.reservoir_state == NORMAL_NUTRIENTS) || (global_state.reservoir_state == NORMAL_FILLING))
           global_state.reservoir_state = NORMAL_PHDOWN;
 
         global_state.adding_nutrients = 0;
         i = 0;
       }
 
-      i++;
     }
   }
 }
@@ -705,6 +709,8 @@ void gpio_ctrl(void){
     // finally set the actual GPIO if we are not in emergency stop mode
     if (global_state.reservoir_state != EMERGENCY_STOP)
       GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
+    else
+      GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, 0);
   }
 }
 

@@ -384,7 +384,7 @@ void TM_EXTI_Handler(uint16_t GPIO_Pin){
   char buf[128];
   sprintf(buf, "{\"irq\": \"%s\", \"state\": \"%s\", \"time\": \"%s\"}\r\n", irq_input_names[pin], GPIO_ReadInputDataBit(irqs[pin].gpio_port, GPIO_Pin) ? "on" : "off", global_state.datestring);
   TM_USART_Puts(USART2, buf);
-  print_irqs();
+  //print_irqs();
 }
 
 
