@@ -148,8 +148,8 @@ exhaust_setpoints_struct_t exhaust_setpoints;
 typedef struct ph_setpoints {
   float min_ph;
   float max_ph;
+  float ml_per_ph_per_10l;
   uint32_t ms_per_ml;
-  uint32_t ml_per_ph_per_10l;
 }ph_setpoints_struct_t;
 
 ph_setpoints_struct_t ph_setpoints;
@@ -181,6 +181,7 @@ typedef struct misc_settings {
   uint32_t res_settling_time_s;
   uint32_t sewage_pump_pause_s;
   uint32_t sewage_pump_run_s;
+  uint32_t nutrient_pause_ms;
 
   uint8_t fill_to_alarm_level   : 1;
   uint8_t i2c_break_enabled     : 1;

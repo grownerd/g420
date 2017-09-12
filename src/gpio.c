@@ -308,6 +308,7 @@ void water_storage_level_irq_handler(uint16_t GPIO_Pin)
 
 
 void TM_EXTI_Handler(uint16_t GPIO_Pin){
+#if 0
   uint8_t pin;
   switch(GPIO_Pin){
     case GPIO_PIN_0: // Blue Button (Discovery Board)
@@ -385,6 +386,7 @@ void TM_EXTI_Handler(uint16_t GPIO_Pin){
   sprintf(buf, "{\"irq\": \"%s\", \"state\": \"%s\", \"time\": \"%s\"}\r\n", irq_input_names[pin], GPIO_ReadInputDataBit(irqs[pin].gpio_port, GPIO_Pin) ? "on" : "off", global_state.datestring);
   TM_USART_Puts(USART2, buf);
   //print_irqs();
+#endif
 }
 
 

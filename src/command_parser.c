@@ -288,7 +288,7 @@ void set_ph(char * val) {
       ph_setpoints.max_ph = atof(part[1]);
 
   } else if (strncmp(part[0], "ms", 2) == 0) {
-      ph_setpoints.ms_per_ml = atof(part[1]);
+      ph_setpoints.ms_per_ml = atoi(part[1]);
 
   } else if (strncmp(part[0], "ml", 2) == 0) {
       ph_setpoints.ml_per_ph_per_10l = atof(part[1]);
