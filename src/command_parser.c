@@ -334,11 +334,11 @@ void set_misc(char * val) {
   } else if (strncmp(part[0], "sewage_run", 10) == 0) {
     misc_settings.sewage_pump_run_s = atof(part[1]);
 
-  } else if (strncmp(part[0], "ph401", 5) == 0) {
-    misc_settings.ph_cal401 = atoi(part[1]);
+  } else if (strncmp(part[0], "ph7_v", 7) == 0) {
+    misc_settings.ph7_v = atof(part[1]);
 
-  } else if (strncmp(part[0], "ph686", 5) == 0) {
-    misc_settings.ph_cal686 = atoi(part[1]);
+  } else if (strncmp(part[0], "ph_step", 7) == 0) {
+    misc_settings.ph_step = atof(part[1]);
 
   } else if (strncmp(part[0], "ec_ra", 5) == 0) {
     misc_settings.ec_ra_ohms = atoi(part[1]);
@@ -346,7 +346,10 @@ void set_misc(char * val) {
   } else if (strncmp(part[0], "ec_r1", 5) == 0) {
     misc_settings.ec_r1_ohms = atoi(part[1]);
 
-  } else if (strncmp(part[0], "ec_k", 5) == 0) {
+  } else if (strncmp(part[0], "vcc_v", 5) == 0) {
+    misc_settings.vcc_v = atof(part[1]);
+
+  } else if (strncmp(part[0], "ec_k", 4) == 0) {
     misc_settings.ec_k = atof(part[1]);
 
   }

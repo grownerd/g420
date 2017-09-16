@@ -39,10 +39,18 @@ void adc_init(void)
   TM_ADC_Init(ADC1, TM_ADC_Channel_9); // PB1
 }
 
+
+#define NUM_READINGS 64
 void read_ph(float* ph_val)
 {
-  uint16_t adc_raw = TM_ADC_Read(ADC1, TM_ADC_Channel_9);
-  *ph_val = (float) (map(adc_raw, misc_settings.ph_cal401, misc_settings.ph_cal686, 4010, 6860) / 1000.0f);
+  uint32_t adc_raw = 0;
+  uint32_t i = 0;
+
+  for (i=0; i<NUM_READINGS; i++)
+    adc_raw += TM_ADC_Read(ADC1, TM_ADC_Channel_9);
+
+  float adc_v = adc_raw * misc_settings.vcc_v / 4096.0f / NUM_READINGS;
+  *ph_val = 7 + ((misc_settings.ph7_v - adc_v) / misc_settings.ph_step);
 }
 
 
@@ -52,14 +60,17 @@ void read_ec(float* ec_val)
   float v_drop = 0;
   float rc = 0;
   float ec = 0;
-  uint32_t next_time = 0;
+  static uint32_t next_time = 0;
 
   if (!next_time) next_time = TM_Time;
 
   if (TM_Time >= next_time){
+    GPIO_WriteBit(GPIOC, GPIO_Pin_1, 1);
+    Delayms(10);
     TM_GPIO_SetPinHigh(EC_GPIO_PORT, EC_GPIO_PIN);
     adc_raw = TM_ADC_Read(ADC1, TM_ADC_Channel_8);
     TM_GPIO_SetPinLow(EC_GPIO_PORT, EC_GPIO_PIN);
+    GPIO_WriteBit(GPIOC, GPIO_Pin_1, 0);
     
     v_drop = (V_IN * adc_raw) / 4096.0;
     rc = (v_drop * misc_settings.ec_r1_ohms) / (V_IN - v_drop);
@@ -67,7 +78,7 @@ void read_ec(float* ec_val)
     ec = 1000 / (rc * misc_settings.ec_k);
     *ec_val = (float)ec / (1 + misc_settings.ec_temp_coef * (ds18b20_sensors[TEMP_RES].value - 25.0));
 
-    next_time = TM_Time + 5000;
+    next_time = TM_Time + misc_settings.ec_read_interval;
   }
 }
 

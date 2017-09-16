@@ -47,6 +47,11 @@ uint8_t capsense_capdac = 0x0;
 uint16_t capsense_offset = 0x0;
 uint16_t capsense_gain = 0x7fff;
 
+/* TODO: extend all name arrays that will have RRDs by a column "ds_name"
+  and output them accordingly.
+
+  Also add unix timestamps to all events and make them RRD compatible
+*/
 
 char irq_input_names[NUM_IRQ_PINS][MAX_SENSOR_NAME_LENGTH + 1] = {
   "Blue Button",
@@ -73,12 +78,10 @@ char res_state_names[NUM_RES_STATES][MAX_SENSOR_NAME_LENGTH + 1] = {
   "DRAIN_CYCLE_FILLING",
   "DRAIN_CYCLE_FULL",
   "DRAIN_CYCLE_NUTRIENTS",
-  "DRAIN_CYCLE_PHDOWN",
   "NORMAL_MIN",
   "NORMAL_FILLING",
   "NORMAL_MAX",
   "NORMAL_NUTRIENTS",
-  "NORMAL_PHDOWN",
   "NORMAL_IDLE",
   "MANUAL_DRAIN",
   "MANUAL_FILL",
@@ -101,14 +104,14 @@ char gpio_output_names[NUM_GPIO_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1] = {
 };
 
 // list onewire sensors first!
-char sensor_names[NUM_SENSORS][MAX_SENSOR_NAME_LENGTH + 1] = {
-  "Water Tank Temperature",
-  "Reservoir Temperature",
-  "Flowering Chamber Temperature",
-  "Flowering Chamber rel. Humidity",
-  "Flowering Chamber Air Pressure",
-  "Reservoir pH",
-  "Reservoir EC",
+char sensor_names[NUM_SENSORS][2][MAX_SENSOR_NAME_LENGTH + 1] = {
+  { "Water Tank Temperature", "storage_temp" },
+  { "Reservoir Temperature", "res_temp" },
+  { "Tent Temperature", "tent_temp" },
+  { "Tent rel. Humidity", "tent_humi" },
+  { "Tent Pressure", "tent_press" },
+  { "Reservoir pH", "res_ph" },
+  { "Reservoir EC", "res_ec" },
 };
 
 char unit_names[NUM_UNITS][MAX_UNIT_NAME_LENGTH + 1] = {
@@ -193,19 +196,19 @@ int main(void) {
   }
     
 
-  bme280_temp.name = sensor_names[TEMP_MAIN];
+  bme280_temp.name = sensor_names[TEMP_MAIN][0];
   bme280_temp.unit = DEG_C;
 
-  bme280_humi.name = sensor_names[HUMI_MAIN];
+  bme280_humi.name = sensor_names[HUMI_MAIN][0];
   bme280_humi.unit = PERCENT;
 
-  bme280_press.name = sensor_names[PRES_MAIN];
+  bme280_press.name = sensor_names[PRES_MAIN][0];
   bme280_press.unit = MBAR;
 
-  adc_ph.name = sensor_names[ADC_PH];
+  adc_ph.name = sensor_names[ADC_PH][0];
   adc_ph.unit = PH;
 
-  adc_ec.name = sensor_names[ADC_EC];
+  adc_ec.name = sensor_names[ADC_EC][0];
   adc_ec.unit = S_CM;
 
 
@@ -214,7 +217,7 @@ int main(void) {
 
   uint8_t i = 0;
   for (i=0; i < DS18B20_NUM_DEVICES; i++) {
-    ds18b20_sensors[i].name = sensor_names[i];
+    ds18b20_sensors[i].name = sensor_names[i][0];
     ds18b20_sensors[i].unit = DEG_C;
     ds18b20_sensors[i].value = 0;
   }
@@ -303,21 +306,21 @@ int main(void) {
 void set_defaults(){
   nutrient_pumps[0].name = gpio_output_names[GPIO_OUTPUT_NUTRIENT1_PUMP];
   nutrient_pumps[0].gpio_output = GPIO_OUTPUT_NUTRIENT1_PUMP;
-  nutrient_pumps[0].ms_per_ml = 1000;
+  nutrient_pumps[0].ms_per_ml = 947;
   nutrient_pumps[0].ml_per_10l = 2.5;
   nutrient_pumps[1].name = gpio_output_names[GPIO_OUTPUT_NUTRIENT2_PUMP];
   nutrient_pumps[1].gpio_output = GPIO_OUTPUT_NUTRIENT2_PUMP;
-  nutrient_pumps[1].ms_per_ml = 1000;
+  nutrient_pumps[1].ms_per_ml = 1219;
   nutrient_pumps[1].ml_per_10l = 2.5;
   nutrient_pumps[2].name = gpio_output_names[GPIO_OUTPUT_NUTRIENT3_PUMP];
   nutrient_pumps[2].gpio_output = GPIO_OUTPUT_NUTRIENT3_PUMP;
-  nutrient_pumps[2].ms_per_ml = 1000;
+  nutrient_pumps[2].ms_per_ml = 1020;
   nutrient_pumps[2].ml_per_10l = 2.5;
 
   ph_setpoints.min_ph = 5.7f;
   ph_setpoints.max_ph = 6.2f;
-  ph_setpoints.ms_per_ml = 1000;
-  ph_setpoints.ml_per_ph_per_10l = 2.2f;
+  ph_setpoints.ms_per_ml = 970;
+  ph_setpoints.ml_per_ph_per_10l = 1.2f;
 
   coolant_setpoints.max_temp = 16.49f;
   coolant_setpoints.min_temp = 16.41f;
@@ -342,15 +345,17 @@ void set_defaults(){
   misc_settings.i2c_timeout = 10;
   misc_settings.i2c_break_enabled = 1;
   misc_settings.fill_to_alarm_level = 0;
-  misc_settings.ec_k = 2.88f;
+  misc_settings.ec_k = 1.316f;
   misc_settings.ec_r1_ohms = 470;
   misc_settings.ec_ra_ohms = 25;
   misc_settings.ec_temp_coef = 0.019f;
+  misc_settings.ec_read_interval = 60000;
   misc_settings.sewage_pump_run_s = 60; // run for one minute
   misc_settings.sewage_pump_pause_s = 7200; // then pause for two hours
-  misc_settings.ph_cal401 = 3195;
-  misc_settings.ph_cal686 = 2805;
-  misc_settings.res_settling_time_s = 5;
+  misc_settings.ph_step = 0.12;
+  misc_settings.ph7_v = 2.54f;
+  misc_settings.vcc_v = 2.89f;
+  misc_settings.res_settling_time_s = 300;
 
 }
 
@@ -424,9 +429,16 @@ void reservoir_level_ctrl()
         }
       } 
 
+      if ((misc_settings.fill_to_alarm_level) && (!global_state.reservoir_alarm)){
+        global_state.reservoir_state = NORMAL_FILLING;
+      }
+
       if ((global_state.reservoir_min) && (!global_state.reservoir_max) && (!global_state.reservoir_alarm)){
         global_state.reservoir_state = NORMAL_MIN;
       }
+
+      if ((!global_state.adding_nutrients) && (global_state.nutrients_done))
+        global_state.nutrients_done = 0;
 
       gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 0;
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
@@ -439,7 +451,8 @@ void reservoir_level_ctrl()
       if ((global_state.reservoir_min) && (!global_state.reservoir_max) && (!global_state.reservoir_alarm)){
         if (TM_Time >= (stirring_time + misc_settings.res_settling_time_s * 1000)) {
           global_state.stirring_nutrients = 0;
-          global_state.adding_nutrients = 1;
+          if (!global_state.nutrients_done)
+            global_state.adding_nutrients = 1;
           global_state.reservoir_state = NORMAL_FILLING;
           sprintf(buf, "{\"event\": \"Reservoir topping up started\", \"time\": \"%s\"}\r\n", global_state.datestring);
         } else {
@@ -462,7 +475,8 @@ void reservoir_level_ctrl()
       if ((!global_state.reservoir_min) && (!global_state.reservoir_max) && (!global_state.reservoir_alarm)){
         if (last_min_state) {
           global_state.stirring_nutrients = 0;
-          global_state.adding_nutrients = 1;
+          if (!global_state.nutrients_done)
+            global_state.adding_nutrients = 1;
           
         }
       }
@@ -476,15 +490,25 @@ void reservoir_level_ctrl()
       break;
 
     case NORMAL_MAX:
-      global_state.reservoir_state = NORMAL_NUTRIENTS;
+      if (global_state.nutrients_done){
+        global_state.nutrients_done = 0;
+        global_state.reservoir_state = NORMAL_NUTRIENTS;
+      } else {
+        global_state.reservoir_state = NORMAL_IDLE;
+      }
       sprintf(buf, "{\"event\": \"Reservoir topping up completed\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
       break;
 
     case DRAIN_CYCLE_FULL:
       global_state.drain_cycle_active = 0;
-      global_state.reservoir_state = DRAIN_CYCLE_NUTRIENTS;
+      if (global_state.nutrients_done){
+        global_state.reservoir_state = DRAIN_CYCLE_NUTRIENTS;
+      } else {
+        global_state.reservoir_state = NORMAL_IDLE;
+      }
       sprintf(buf, "{\"event\": \"Reservoir Filling complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
       break;
 
     case DRAIN_CYCLE_DRAINING:
@@ -587,13 +611,13 @@ void nutrient_pump_ctrl(void){
         next_time = TM_Time + (dosage_ml * nutrient_pumps[i].ms_per_ml) + misc_settings.nutrient_pause_ms;
         i++;
 
-      } else{
-        if ((global_state.reservoir_state == DRAIN_CYCLE_NUTRIENTS) || (global_state.reservoir_state == DRAIN_CYCLE_FILLING))
-          global_state.reservoir_state = DRAIN_CYCLE_PHDOWN;
-        else if ((global_state.reservoir_state == NORMAL_NUTRIENTS) || (global_state.reservoir_state == NORMAL_FILLING))
-          global_state.reservoir_state = NORMAL_PHDOWN;
+      } else {
+        if ((global_state.reservoir_state == DRAIN_CYCLE_NUTRIENTS)
+        || (global_state.reservoir_state == NORMAL_NUTRIENTS))
+          global_state.reservoir_state = NORMAL_IDLE;
 
         global_state.adding_nutrients = 0;
+        global_state.nutrients_done = 1;
         i = 0;
       }
 
@@ -632,7 +656,7 @@ void ph_ctrl(void){
   static uint32_t next_time = 0;
 
 
-  if ((global_state.reservoir_state == NORMAL_IDLE) || (global_state.reservoir_state == NORMAL_PHDOWN) || (global_state.reservoir_state == DRAIN_CYCLE_PHDOWN)){
+  if (global_state.reservoir_state == NORMAL_IDLE){
     if (!next_time) next_time = TM_Time;
     if (TM_Time >= next_time) {
       if (adc_ph.value >= ph_setpoints.max_ph) {
@@ -833,14 +857,17 @@ void print_env(void) {
   memset(buf, 0, sizeof(buf));
 
   TM_USART_Puts(USART2, "{\"name\":\"Sensors\",\"content\":[\r\n");
-  sprintf(buf, "\t{\"name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n\t{\"name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"}, \r\n\t{\"name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n",
+  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n\t{\"name\":\"%s\",\"ds_name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"}, \r\n\t{\"name\":\"%s\",\"ds_name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n",
     bme280_temp.name,
+    sensor_names[TEMP_MAIN][1],
     bme280_temp.value,
     unit_names[bme280_temp.unit],
     bme280_humi.name,
+    sensor_names[HUMI_MAIN][1],
     bme280_humi.value,
     unit_names[bme280_humi.unit],
     bme280_press.name,
+    sensor_names[PRES_MAIN][1],
     bme280_press.value,
     unit_names[bme280_press.unit]
   );
@@ -848,18 +875,19 @@ void print_env(void) {
 
   uint8_t i;
   for (i=0; i< DS18B20_NUM_DEVICES; i++) {
-    sprintf(buf, "\t{\"name\":\"%s\",\"value\":%.2f, \"unit\":\"%s\"},\r\n",
+    sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\":\"%s\",\"value\":%.2f, \"unit\":\"%s\"},\r\n",
       ds18b20_sensors[i].name,
+      sensor_names[i][1],
       ds18b20_sensors[i].value,
       unit_names[DEG_C]
     );
     TM_USART_Puts(USART2, buf);
   }
 
-  sprintf(buf, "\t{\"name\": \"%s\", \"value\":%1.2f},\r\n", sensor_names[ADC_PH], adc_ph.value);
+  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f},\r\n", sensor_names[ADC_PH][0], sensor_names[ADC_PH][1], adc_ph.value);
   TM_USART_Puts(USART2, buf);
 
-  sprintf(buf, "\t{\"name\": \"%s\", \"value\":%1.2f}\r\n", sensor_names[ADC_EC], adc_ec.value);
+  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f}\r\n", sensor_names[ADC_EC][0], sensor_names[ADC_EC][1], adc_ec.value);
   TM_USART_Puts(USART2, buf);
 
   TM_USART_Puts(USART2, "]}\r\n");
@@ -1059,7 +1087,7 @@ void print_irqs(void){
 void print_ph(void){
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
-  sprintf(buf, "{\"name\": \"%s\", \"value\":%1.2f}\r\n", sensor_names[ADC_PH], adc_ph.value);
+  sprintf(buf, "{\"name\": \"%s\", \"value\":%1.2f}\r\n", sensor_names[ADC_PH][0], adc_ph.value);
   TM_USART_Puts(USART2, buf);
   sprintf(buf, "{\"name\": \"pH Adjustment Settings\", \"min_ph\":%1.2f, \"max_ph\":%1.2f, \"ms_per_ml\":%d, \"ml_per_ph_per_10l\":%1.2f}\r\n", ph_setpoints.min_ph, ph_setpoints.max_ph, ph_setpoints.ms_per_ml, ph_setpoints.ml_per_ph_per_10l);
   TM_USART_Puts(USART2, buf);
@@ -1069,7 +1097,7 @@ void print_ph(void){
 void print_ec(void){
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
-  sprintf(buf, "{\"name\": \"%s\", \"value\":%1.4f}\r\n", sensor_names[ADC_EC], adc_ec.value);
+  sprintf(buf, "{\"name\": \"%s\", \"value\":%1.4f}\r\n", sensor_names[ADC_EC][0], adc_ec.value);
   TM_USART_Puts(USART2, buf);
 }
 
@@ -1088,8 +1116,9 @@ void print_settings(void){
 \"ec_temp_coef\":%1.4f,\r\n\t\
 \"ec_r1_ohms\":%d,\r\n\t\
 \"ec_ra_ohms\":%d,\r\n\t\
-\"ph_cal401\":%d,\r\n\t\
-\"ph_cal686\":%d,\r\n\t\
+\"ph_step\":%1.4f,\r\n\t\
+\"ph7_v\":%1.4f,\r\n\t\
+\"vcc_v\":%1.4f,\r\n\t\
 \"res_settling_time\":%d,\r\n\t\
 \"sewage_pump_pause_s\":%d,\r\n\t\
 \"sewage_pump_run_s\":%d,\r\n\t\
@@ -1103,8 +1132,9 @@ void print_settings(void){
     misc_settings.ec_temp_coef,
     misc_settings.ec_r1_ohms,
     misc_settings.ec_ra_ohms,
-    misc_settings.ph_cal401,
-    misc_settings.ph_cal686,
+    misc_settings.ph_step,
+    misc_settings.ph7_v,
+    misc_settings.vcc_v,
     misc_settings.res_settling_time_s,
     misc_settings.sewage_pump_pause_s,
     misc_settings.sewage_pump_run_s,

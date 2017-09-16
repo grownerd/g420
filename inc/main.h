@@ -6,7 +6,7 @@
 #define MAX_OUTPUT_NAME_LENGTH  64
 #define NUM_SENSORS 7
 #define NUM_NUTRIENT_PUMPS 3
-#define NUM_RES_STATES 16
+#define NUM_RES_STATES 14
 #define NUM_UNITS 8
 #define MAX_UNIT_NAME_LENGTH 9
 #define MAX_STR_LEN 1024
@@ -48,7 +48,7 @@ extern output_relay_struct_t relays[NUM_RELAYS];
 extern gpio_output_struct_t gpio_outputs[NUM_GPIO_OUTPUTS];
 extern irq_switch_struct_t irqs[NUM_IRQ_PINS];
 extern char irq_input_names[NUM_IRQ_PINS][MAX_SENSOR_NAME_LENGTH + 1];
-extern char sensor_names[NUM_SENSORS][MAX_SENSOR_NAME_LENGTH + 1];
+extern char sensor_names[NUM_SENSORS][2][MAX_SENSOR_NAME_LENGTH + 1];
 extern char gpio_output_names[NUM_GPIO_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1];
 extern char unit_names[NUM_UNITS][MAX_UNIT_NAME_LENGTH + 1];
 
@@ -60,12 +60,10 @@ typedef enum resservoir_state {
   DRAIN_CYCLE_FILLING,
   DRAIN_CYCLE_FULL,
   DRAIN_CYCLE_NUTRIENTS,
-  DRAIN_CYCLE_PHDOWN,
   NORMAL_MIN,
   NORMAL_FILLING,
   NORMAL_MAX,
   NORMAL_NUTRIENTS,
-  NORMAL_PHDOWN,
   NORMAL_IDLE,
   MANUAL_DRAIN,
   MANUAL_FILL,
@@ -170,9 +168,11 @@ typedef struct misc_settings {
 
   uint16_t ec_r1_ohms;
   uint16_t ec_ra_ohms;
+  uint32_t ec_read_interval;
 
-  uint16_t ph_cal401;
-  uint16_t ph_cal686;
+  float ph_step;
+  float ph7_v;
+  float vcc_v;
 
   float nutrient_factor;
   float res_liters_min;
@@ -204,12 +204,13 @@ typedef struct global_state {
   uint8_t adjusting_ph          : 1;
   uint8_t adding_nutrients      : 1;
   uint8_t stirring_nutrients    : 1;
-  uint8_t reservoir_alarm       : 1;
+  uint8_t nutrients_done        : 1;
 
+  uint8_t reservoir_alarm       : 1;
   uint8_t reservoir_max         : 1;
   uint8_t reservoir_min         : 1;
   uint8_t water_tank_empty      : 1;
-  uint8_t                       : 5;
+  uint8_t                       : 4;
 
   uint32_t i2c_errors;
   uint32_t i2c_restarts;
