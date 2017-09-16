@@ -29,6 +29,8 @@
 #include "command_parser.h"
 #include "flash.h"
 
+#define NUM_PH_READINGS 1024
+#define NUM_PH_AVG_VALS 16 // must be a multipoe of 4!
 
 int16_t map(int16_t x, int16_t in_min, int16_t in_max, int16_t out_min, int16_t out_max);
 
@@ -40,17 +42,43 @@ void adc_init(void)
 }
 
 
-#define NUM_READINGS 64
 void read_ph(float* ph_val)
 {
+  float adc_v = 0;
   uint32_t adc_raw = 0;
   uint32_t i = 0;
+  uint32_t j = 0;
+  uint32_t tmp_val = 0;
+  static uint32_t ph_arr[NUM_PH_AVG_VALS] = {0};
+  static uint32_t arr_idx = 0;
 
-  for (i=0; i<NUM_READINGS; i++)
+  for (i=0; i<NUM_PH_READINGS; i++)
     adc_raw += TM_ADC_Read(ADC1, TM_ADC_Channel_9);
 
-  float adc_v = adc_raw * misc_settings.vcc_v / 4096.0f / NUM_READINGS;
-  *ph_val = 7 + ((misc_settings.ph7_v - adc_v) / misc_settings.ph_step);
+  adc_v = adc_raw * misc_settings.vcc_v / 4096.0f / NUM_PH_READINGS;
+
+  if (arr_idx < NUM_PH_AVG_VALS) {
+    ph_arr[arr_idx++] = adc_v;
+  } else {
+    arr_idx = 0;
+
+    // bubble sort the array
+    for (i = 0; i < num; i++) {
+      for (j = 0; j < (num - i - 1); j++) {
+        if (ph_arr[j] > ph_arr[j + 1]) {
+          tmp_val = ph_arr[j];
+          ph_arr[j] = ph_arr[j + 1];
+          ph_arr[j + 1] = tmp_val;
+        }
+      }
+    }
+
+    for (i=NUM_PH_AVG_VALS/4; i<(NUM_PH_AVG_VALS/4*3); i++)
+      adv_v += ph_arr[i];
+
+    adv_v /= (NUM_PH_AVG_VALS/2);
+    *ph_val = 7 + ((misc_settings.ph7_v - adc_v) / misc_settings.ph_step);
+  }
 }
 
 
@@ -78,7 +106,7 @@ void read_ec(float* ec_val)
     ec = 1000 / (rc * misc_settings.ec_k);
     *ec_val = (float)ec / (1 + misc_settings.ec_temp_coef * (ds18b20_sensors[TEMP_RES].value - 25.0));
 
-    next_time = TM_Time + misc_settings.ec_read_interval;
+    next_time = TM_Time + (misc_settings.ec_read_interval_s * 1000);
   }
 }
 

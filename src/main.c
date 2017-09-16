@@ -349,7 +349,7 @@ void set_defaults(){
   misc_settings.ec_r1_ohms = 470;
   misc_settings.ec_ra_ohms = 25;
   misc_settings.ec_temp_coef = 0.019f;
-  misc_settings.ec_read_interval = 60000;
+  misc_settings.ec_read_interval_s = 60;
   misc_settings.sewage_pump_run_s = 60; // run for one minute
   misc_settings.sewage_pump_pause_s = 7200; // then pause for two hours
   misc_settings.ph_step = 0.12;
@@ -636,15 +636,16 @@ void sewage_pump_ctrl(void){
     static uint32_t last_time = 0;
     if (!last_time) last_time = TM_Time;
 
-    if (((TM_Time - last_time) >= ((misc_settings.sewage_pump_pause_s * 1000) + (misc_settings.sewage_pump_run_s * 1000)))
-    || (global_state.sewage_tank_full)) {
+    if ((TM_Time >= (last_time + (misc_settings.sewage_pump_pause_s * 1000) + (misc_settings.sewage_pump_run_s * 1000))) || ((TM_Time > last_time) && (global_state.sewage_tank_full))) {
       gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].run_for_ms = misc_settings.sewage_pump_run_s * 1000;
       sprintf(buf, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_SEWAGE_PUMP], gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].run_for_ms, global_state.datestring);
       TM_USART_Puts(USART2, buf);
+      last_time = TM_Time;
     }
   }
 }
 
+#define NUM_PH_AVG_VALS 10
 void ph_ctrl(void){
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
@@ -654,10 +655,18 @@ void ph_ctrl(void){
   float ml_to_add = 0;
   uint32_t ms_to_run = 0;
   static uint32_t next_time = 0;
+  static uint32_t ph_arr[NUM_PH_AVG_VALS] = {0};
+  static uint32_t arr_idx = 0;
+
+  if (arr_idx < NUM_PH_AVG_VALS) {
+    ph_arr[arr_idx++] = adc_ph.value;
+  } else {
+    arr_idx = 0;
+  }
 
 
   if (global_state.reservoir_state == NORMAL_IDLE){
-    if (!next_time) next_time = TM_Time;
+    if (!next_time) next_time = TM_Time + (misc_settings.res_settling_time_s * 1000);
     if (TM_Time >= next_time) {
       if (adc_ph.value >= ph_setpoints.max_ph) {
         ph_delta = adc_ph.value - ph_setpoints.min_ph;
