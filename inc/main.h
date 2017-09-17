@@ -170,7 +170,9 @@ typedef struct misc_settings {
   uint16_t ec_ra_ohms;
   uint32_t ec_read_interval_s;
 
-  float ph_step;
+  float ph4_ph;
+  float ph7_ph;
+  float ph4_v;
   float ph7_v;
   float vcc_v;
 

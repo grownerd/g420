@@ -189,10 +189,12 @@ int main(void) {
   bme280_init_result = init_bme280(&bme280_1); // this is not the driver internal init function!
 
   if (bme280_init_result == 0) {
-    TM_USART_Puts(USART2, "bme280 initialized\r\n");
+    sprintf(buf, "{\"event\": \"BME280 Initialized\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    TM_USART_Puts(USART2, buf);
     TM_WATCHDOG_Reset();
   } else {
-    TM_USART_Puts(USART2, "bme280 initializion error!\r\n");
+    sprintf(buf, "{\"error\": \"BME280 Initialization Error!\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    TM_USART_Puts(USART2, buf);
   }
     
 
@@ -317,10 +319,10 @@ void set_defaults(){
   nutrient_pumps[2].ms_per_ml = 1020;
   nutrient_pumps[2].ml_per_10l = 2.5;
 
-  ph_setpoints.min_ph = 5.7f;
-  ph_setpoints.max_ph = 6.2f;
+  ph_setpoints.min_ph = 5.8f;
+  ph_setpoints.max_ph = 6.0f;
   ph_setpoints.ms_per_ml = 970;
-  ph_setpoints.ml_per_ph_per_10l = 1.2f;
+  ph_setpoints.ml_per_ph_per_10l = 0.8f;
 
   coolant_setpoints.max_temp = 16.49f;
   coolant_setpoints.min_temp = 16.41f;
@@ -352,9 +354,12 @@ void set_defaults(){
   misc_settings.ec_read_interval_s = 60;
   misc_settings.sewage_pump_run_s = 60; // run for one minute
   misc_settings.sewage_pump_pause_s = 7200; // then pause for two hours
-  misc_settings.ph_step = 0.12;
-  misc_settings.ph7_v = 2.54f;
-  misc_settings.vcc_v = 2.89f;
+  misc_settings.ph4_ph = 4.01f;
+  misc_settings.ph7_ph = 6.86f;
+  misc_settings.ph4_v = 2.91;
+  misc_settings.ph7_v = 2.60f;
+  misc_settings.vcc_v = 2.94f;
+  //misc_settings.ph_step = 0.10877193f;
   misc_settings.res_settling_time_s = 300;
 
 }
@@ -492,9 +497,9 @@ void reservoir_level_ctrl()
     case NORMAL_MAX:
       if (global_state.nutrients_done){
         global_state.nutrients_done = 0;
-        global_state.reservoir_state = NORMAL_NUTRIENTS;
-      } else {
         global_state.reservoir_state = NORMAL_IDLE;
+      } else {
+        global_state.reservoir_state = NORMAL_NUTRIENTS;
       }
       sprintf(buf, "{\"event\": \"Reservoir topping up completed\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
@@ -503,9 +508,10 @@ void reservoir_level_ctrl()
     case DRAIN_CYCLE_FULL:
       global_state.drain_cycle_active = 0;
       if (global_state.nutrients_done){
-        global_state.reservoir_state = DRAIN_CYCLE_NUTRIENTS;
-      } else {
+        global_state.nutrients_done = 0;
         global_state.reservoir_state = NORMAL_IDLE;
+      } else {
+        global_state.reservoir_state = DRAIN_CYCLE_NUTRIENTS;
       }
       sprintf(buf, "{\"event\": \"Reservoir Filling complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
@@ -645,7 +651,6 @@ void sewage_pump_ctrl(void){
   }
 }
 
-#define NUM_PH_AVG_VALS 10
 void ph_ctrl(void){
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
@@ -655,15 +660,6 @@ void ph_ctrl(void){
   float ml_to_add = 0;
   uint32_t ms_to_run = 0;
   static uint32_t next_time = 0;
-  static uint32_t ph_arr[NUM_PH_AVG_VALS] = {0};
-  static uint32_t arr_idx = 0;
-
-  if (arr_idx < NUM_PH_AVG_VALS) {
-    ph_arr[arr_idx++] = adc_ph.value;
-  } else {
-    arr_idx = 0;
-  }
-
 
   if (global_state.reservoir_state == NORMAL_IDLE){
     if (!next_time) next_time = TM_Time + (misc_settings.res_settling_time_s * 1000);
@@ -685,7 +681,7 @@ void ph_ctrl(void){
         global_state.adjusting_ph = 1;
         gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = ms_to_run;
 
-        sprintf(buf, "{\"info\": \"Adding %1.2f ml of pHDown to %1.2f liters in Reservoir to lower pH by %1.2f.\", \"time\": \"%s\"}\r\n", ml_to_add, liters_in_res, ph_delta, global_state.datestring);
+        sprintf(buf, "{\"info\": \"ph_down\", \"amount_ml\": %1.2f, \"liters_in_res\": %1.2f, \"ph_delta\": %1.2f.\", \"ts\": %d, \"time\": \"%s\"}\r\n", ml_to_add, liters_in_res, ph_delta, TM_Time, global_state.datestring);
         TM_USART_Puts(USART2, buf);
 
         sprintf(buf, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_PHDOWN_PUMP], gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms, global_state.datestring);
@@ -700,7 +696,7 @@ void ph_ctrl(void){
   }
 
   if  ((gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms == 0) && (global_state.adjusting_ph)){
-    sprintf(buf, "{\"event\": \"Finished adjusting pH\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_PHDOWN_PUMP], gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms, global_state.datestring);
+    sprintf(buf, "{\"event\": \"%s turned off\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_PHDOWN_PUMP], global_state.datestring);
     TM_USART_Puts(USART2, buf);
     global_state.adjusting_ph = 0;
     global_state.reservoir_state = NORMAL_IDLE;
@@ -1121,11 +1117,15 @@ void print_settings(void){
 \"res_liters_max\":%1.2f,\r\n\t\
 \"res_liters_alarm\":%1.2f,\r\n\t\
 \"nutrient_factor\":%1.2f,\r\n\t\
+\"nutrient_pause_ms\":%1.2f,\r\n\t\
 \"ec_k\":%1.4f,\r\n\t\
 \"ec_temp_coef\":%1.4f,\r\n\t\
 \"ec_r1_ohms\":%d,\r\n\t\
 \"ec_ra_ohms\":%d,\r\n\t\
-\"ph_step\":%1.4f,\r\n\t\
+\"ec_read_interval_s\":%d,\r\n\t\
+\"ph4_ph\":%1.4f,\r\n\t\
+\"ph7_ph\":%1.4f,\r\n\t\
+\"ph4_v\":%1.4f,\r\n\t\
 \"ph7_v\":%1.4f,\r\n\t\
 \"vcc_v\":%1.4f,\r\n\t\
 \"res_settling_time\":%d,\r\n\t\
@@ -1137,11 +1137,15 @@ void print_settings(void){
     misc_settings.res_liters_max,
     misc_settings.res_liters_alarm,
     misc_settings.nutrient_factor,
+    misc_settings.nutrient_pause_ms,
     misc_settings.ec_k,
     misc_settings.ec_temp_coef,
     misc_settings.ec_r1_ohms,
     misc_settings.ec_ra_ohms,
-    misc_settings.ph_step,
+    misc_settings.ec_read_interval_s,
+    misc_settings.ph4_ph,
+    misc_settings.ph7_ph,
+    misc_settings.ph4_v,
     misc_settings.ph7_v,
     misc_settings.vcc_v,
     misc_settings.res_settling_time_s,
@@ -1165,8 +1169,9 @@ void print_state(void){
 \"sewage_tank_empty\":%d,\r\n\t\
 \"drain_cycle_active\":%d,\r\n\t\
 \"adjusting_ph\":%d,\r\n\t\
-\"adding_nutrients\":%d,\r\n\t\
 \"stirring_nutrients\":%d,\r\n\t\
+\"adding_nutrients\":%d,\r\n\t\
+\"nutrients_done\":%d,\r\n\t\
 \"reservoir_alarm\":%d,\r\n\t\
 \"reservoir_max\":%d,\r\n\t\
 \"reservoir_min\":%d,\r\n\t\
@@ -1178,8 +1183,9 @@ void print_state(void){
     global_state.sewage_tank_empty,
     global_state.drain_cycle_active,
     global_state.adjusting_ph,
-    global_state.adding_nutrients,
     global_state.stirring_nutrients,
+    global_state.adding_nutrients,
+    global_state.nutrients_done,
     global_state.reservoir_alarm,
     global_state.reservoir_max,
     global_state.reservoir_min,

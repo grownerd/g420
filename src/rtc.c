@@ -35,9 +35,9 @@ TM_RTC_Time_t Time;
 
 void set_time(char * timestring) {
   if (TM_RTC_SetDateTimeString(timestring) == TM_RTC_Result_Ok) {
-    TM_USART_Puts(USART2, "Time set OK\r\n");
+    TM_USART_Puts(USART2, "{\"event\": \"Time set OK\"}\r\n");
   } else {
-    TM_USART_Puts(USART2, "Time set Error\r\n");
+    TM_USART_Puts(USART2, "{\"error\": \"Time set Error\"}\r\n");
   }
 }
 
@@ -105,7 +105,7 @@ void TM_RTC_RequestHandler() {
 /* Called on alarm A interrupt */
 void TM_RTC_AlarmAHandler(void) {
     /* Show user to USART */
-    TM_USART_Puts(USART2, "Alarm A triggered\r\n");
+    //TM_USART_Puts(USART2, "Alarm A triggered\r\n");
     
     /* Disable Alarm so it will not trigger next week at the same time */
     //TM_RTC_DisableAlarm(TM_RTC_Alarm_A);
@@ -115,7 +115,7 @@ void TM_RTC_AlarmAHandler(void) {
 /* Called on alarm B interrupt */
 void TM_RTC_AlarmBHandler(void) {
     /* Show user to USART */
-    TM_USART_Puts(USART2, "Alarm B triggered\r\n");
+    //TM_USART_Puts(USART2, "Alarm B triggered\r\n");
     
     //TM_RTC_DisableAlarm(TM_RTC_Alarm_A);
 }
