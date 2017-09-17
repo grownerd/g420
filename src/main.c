@@ -246,8 +246,9 @@ int main(void) {
     // Read Sensors
     fdc1004_read(capsense_data);
     ds18b20_read_temp();
-    read_ec(&adc_ec.value);
     read_ph(&adc_ph.value);
+    // the ec reading distorts the ph reading and should happen after it
+    read_ec(&adc_ec.value);
     read_bme280(&bme280_1, &bme280_temp.value, &bme280_humi.value, &bme280_press.value);
 
     // If we had any timeouts on the I2C bus, try to recover by clocking out the remaining garbage and restarting the peripheral
@@ -322,7 +323,7 @@ void set_defaults(){
   ph_setpoints.min_ph = 5.8f;
   ph_setpoints.max_ph = 6.0f;
   ph_setpoints.ms_per_ml = 970;
-  ph_setpoints.ml_per_ph_per_10l = 0.8f;
+  ph_setpoints.ml_per_ph_per_10l = 0.2f;
 
   coolant_setpoints.max_temp = 16.49f;
   coolant_setpoints.min_temp = 16.41f;
