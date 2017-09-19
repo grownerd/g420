@@ -142,6 +142,7 @@ sensor_t ds18b20_sensors[DS18B20_NUM_DEVICES];
 
 
 int main(void) {
+  global_state.system_uptime = 0;
   char buf[MAX_STR_LEN];
 
   watchdog_barked = 0;
@@ -1145,7 +1146,7 @@ void print_settings(void){
 {\"ph4_v\":%1.4f},\r\n\t\
 {\"ph7_v\":%1.4f},\r\n\t\
 {\"vcc_v\":%1.4f},\r\n\t\
-{\"res_settling_time\":%d},\r\n\t\
+{\"res_settling_time_s\":%d},\r\n\t\
 {\"sewage_pump_pause_s\":%d},\r\n\t\
 {\"sewage_pump_run_s\":%d},\r\n\t\
 {\"fill_to_alarm_level\":%d}]\r\n\
@@ -1193,6 +1194,7 @@ void print_state(void){
 {\"ds_name\": \"reservoir_max\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"reservoir_min\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"water_tank_empty\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"system_uptime\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"reservoir_state\", \"state\":%d, \"state_name\":\"%s\"}]\r\n\
 }\r\n",
     global_state.sewage_pump_blocked,
@@ -1207,12 +1209,14 @@ void print_state(void){
     global_state.reservoir_max,
     global_state.reservoir_min,
     global_state.water_tank_empty,
+    global_state.system_uptime,
     global_state.reservoir_state,
     res_state_names[global_state.reservoir_state][0]
   );
   TM_USART_Puts(USART2, buf);
 }
 
+// this is somehow broken. Don't use it!
 void delay_ms(__IO uint32_t ms)
 {
   uint32_t ncount = 6736;
