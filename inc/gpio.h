@@ -73,7 +73,6 @@ typedef struct gpio_output {
 }gpio_output_struct_t ;
 
 
-#if 1
 typedef struct irq_switch{
   GPIO_TypeDef* gpio_port;
   uint16_t gpio_pin;
@@ -83,21 +82,14 @@ typedef struct irq_switch{
   uint8_t current_state   : 1; 
   uint8_t                 : 4; 
 } irq_switch_struct_t ;
-#else
-extern GPIO_TypeDef* irq_ports[NUM_IRQ_PINS];
-#endif
 
-extern TM_PWM_TIM_t TIM1_Data, TIM3_Data;
 extern TM_PWMIN_t PWMIN1_Data, PWMIN2_Data;
 
 void exti_init(void);
 void gpio_init(void);
-void pwm_init(void);
 void pwmin_init(void);
+void dosing_pump_timer_init();
 void switch_relay(output_relay_struct_t * relay, uint8_t action);
-void reservoir_level_irq_handler(uint16_t GPIO_Pin);
-void sewage_level_irq_handler(uint16_t GPIO_Pin);
-void dehumidifier_level_irq_handler(uint16_t GPIO_Pin);
 
 #endif
 

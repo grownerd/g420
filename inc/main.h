@@ -32,9 +32,10 @@ void print_state(void);
 void print_nutrients(void);
 
 void delay_ms(__IO uint32_t ms);
-void set_defaults();
+void set_defaults(void);
 void emergency_stop(uint8_t release);
-void reservoir_level_ctrl();
+void gpio_check(void);
+void reservoir_level_ctrl(void);
 void reset_errors(void);
 void ph_ctrl(void);
 void gpio_ctrl(void);
@@ -47,9 +48,10 @@ void light_scheduler(void);
 extern output_relay_struct_t relays[NUM_RELAYS];
 extern gpio_output_struct_t gpio_outputs[NUM_GPIO_OUTPUTS];
 extern irq_switch_struct_t irqs[NUM_IRQ_PINS];
-extern char irq_input_names[NUM_IRQ_PINS][MAX_SENSOR_NAME_LENGTH + 1];
+extern char irq_input_names[NUM_IRQ_PINS][2][MAX_SENSOR_NAME_LENGTH + 1];
+extern char res_state_names[NUM_RES_STATES][2][MAX_SENSOR_NAME_LENGTH + 1];
 extern char sensor_names[NUM_SENSORS][2][MAX_SENSOR_NAME_LENGTH + 1];
-extern char gpio_output_names[NUM_GPIO_OUTPUTS][MAX_OUTPUT_NAME_LENGTH + 1];
+extern char gpio_output_names[NUM_GPIO_OUTPUTS][2][MAX_OUTPUT_NAME_LENGTH + 1];
 extern char unit_names[NUM_UNITS][MAX_UNIT_NAME_LENGTH + 1];
 
 extern struct bme280_t bme280_1;

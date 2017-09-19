@@ -195,200 +195,6 @@ void exti_init(){
   TM_EXTI_Attach(GPIOE, GPIO_Pin_15, TM_EXTI_Trigger_Rising_Falling);
 }
 
-void reservoir_level_irq_handler(uint16_t GPIO_Pin)
-{
-#if 0
-  switch (GPIO_Pin) {
-    // reservoir min
-    case GPIO_PIN_1:
-      // nc switch to VCC closed -> GPIO_Pin == HIGH
-      if (global_state.reservoir_state == NORMAL_IDLE) {
-        if (GPIO_ReadInputDataBit(irqs[SWITCH_RES_MIN].gpio_port, GPIO_Pin)){
-          //global_state.reservoir_min = 1;
-          //pwms[PWM_FILL_PUMP].duty_percent = 100;
-          global_state.reservoir_state = NORMAL_MIN;
-        }
-      }
-      break;
-
-    // reservoir max
-    case GPIO_PIN_2:
-      // nc switch to VCC opened -> GPIO_Pin == LOW
-      if (!misc_settings.fill_to_alarm_level) {
-        if (!GPIO_ReadInputDataBit(irqs[SWITCH_RES_MAX].gpio_port, GPIO_Pin)){
-          //pwms[PWM_FILL_PUMP].duty_percent = 0;
-          //global_state.reservoir_max = 1;
-
-          if (global_state.reservoir_state == DRAIN_CYCLE_FILLING)
-            global_state.reservoir_state = DRAIN_CYCLE_FULL;
-          else if (global_state.reservoir_state == NORMAL_FILLING)
-            global_state.reservoir_state = NORMAL_MAX;
-            
-        }
-      }
-      break;
-
-    // reservoir alarm
-    case GPIO_PIN_3:
-      // nc switch to VCC opened -> GPIO_Pin == LOW
-      if (!GPIO_ReadInputDataBit(irqs[SWITCH_RES_ALARM].gpio_port, GPIO_Pin)){
-        //pwms[PWM_FILL_PUMP].duty_percent = 0;
-        //global_state.reservoir_alarm = 1;
-
-        if (global_state.reservoir_state == DRAIN_CYCLE_FILLING)
-          global_state.reservoir_state = DRAIN_CYCLE_FULL;
-        else if (global_state.reservoir_state == NORMAL_FILLING)
-          global_state.reservoir_state = NORMAL_MAX;
-
-      }
-      break;
-  }
-#endif
-}
-
-void sewage_level_irq_handler(uint16_t GPIO_Pin)
-{
-#if 0
-  switch (GPIO_Pin) {
-    // tank full
-    case GPIO_PIN_10:
-      // nc switch to VCC opened -> GPIO_Pin == LOW
-      if (!GPIO_ReadInputDataBit(irqs[SWITCH_SEWAGE_MAX].gpio_port, GPIO_Pin))
-        pwms[PWM_SEWAGE_PUMP].duty_percent = 100;
-      break;
-
-    // tank empty
-    case GPIO_PIN_11:
-      // nc switch to VCC closed -> GPIO_Pin == HIGH
-      if (GPIO_ReadInputDataBit(irqs[SWITCH_SEWAGE_MIN].gpio_port, GPIO_Pin))
-        pwms[PWM_SEWAGE_PUMP].duty_percent = 0;
-        pwms[PWM_SEWAGE_PUMP].run_for_ms = 0;
-        global_state.sewage_tank_empty = 1;
-      break;
-  }
-#endif
-}
-
-void dehumidifier_level_irq_handler(uint16_t GPIO_Pin)
-{
-#if 0
-  switch (GPIO_Pin) {
-    // tank full
-    case GPIO_PIN_7:
-      // nc switch to VCC opened -> GPIO_Pin == LOW
-      if (!GPIO_ReadInputDataBit(irqs[SWITCH_DEHUMI_MAX].gpio_port, GPIO_Pin))
-        pwms[PWM_DEHUMI_PUMP].duty_percent = 100;
-      break;
-
-    // tank empty
-    case GPIO_PIN_8:
-      // nc switch to VCC closed -> GPIO_Pin == HIGH
-      if (GPIO_ReadInputDataBit(irqs[SWITCH_DEHUMI_MIN].gpio_port, GPIO_Pin))
-        pwms[PWM_DEHUMI_PUMP].duty_percent = 0;
-      break;
-  }
-#endif
-}
-
-void water_storage_level_irq_handler(uint16_t GPIO_Pin)
-{
-#if 0
-  switch (GPIO_Pin) {
-    // tank empty
-    case GPIO_PIN_8:
-      // nc switch to VCC closed -> GPIO_Pin == HIGH
-      if (GPIO_ReadInputDataBit(irqs[SWITCH_WATER_EMPTY].gpio_port, GPIO_Pin))
-        global_state.water_tank_empty = 1;
-      else
-        global_state.water_tank_empty = 0;
-      break;
-  }
-#endif
-}
-
-
-void TM_EXTI_Handler(uint16_t GPIO_Pin){
-#if 0
-  uint8_t pin;
-  switch(GPIO_Pin){
-    case GPIO_PIN_0: // Blue Button (Discovery Board)
-      pin = 0;
-      break;
-
-    case GPIO_PIN_1: // Reservoir Min
-      pin = 1;
-      reservoir_level_irq_handler(GPIO_Pin);
-      break;
-
-    case GPIO_PIN_2: // Reservoir Max
-      pin = 2;
-      reservoir_level_irq_handler(GPIO_Pin);
-      break;
-
-    case GPIO_PIN_3: // Reservoir Alarm
-      pin = 3;
-      reservoir_level_irq_handler(GPIO_Pin);
-      break;
-
-    case GPIO_PIN_4: // 
-      pin = 4;
-      break;
-
-    case GPIO_PIN_5: // 
-      pin = 5;
-      break;
-
-    case GPIO_PIN_6: // 
-      pin = 6;
-      break;
-
-    case GPIO_PIN_7: // Dehumidifier tank full
-      pin = 7;
-      dehumidifier_level_irq_handler(GPIO_Pin);
-      break;
-
-    case GPIO_PIN_8: // Dehumidifier tank empty
-      pin = 8;
-      dehumidifier_level_irq_handler(GPIO_Pin);
-      break;
-
-    // no pin 9
-
-    case GPIO_PIN_10: // Sewage tank full
-      pin = 10;
-      sewage_level_irq_handler(GPIO_Pin);
-      break;
-
-    case GPIO_PIN_11: // Sewage tank empty
-      pin = 11;
-      sewage_level_irq_handler(GPIO_Pin);
-      break;
-
-    case GPIO_PIN_12: //
-      pin = 12;
-      break;
-
-    case GPIO_PIN_13: //
-      pin = 13;
-      break;
-
-    // no pin 14
-
-    case GPIO_PIN_15: //
-      pin = 15;
-      water_storage_level_irq_handler(GPIO_Pin);
-      break;
-
-  default:
-    break;
-  }
-  char buf[128];
-  sprintf(buf, "{\"irq\": \"%s\", \"state\": \"%s\", \"time\": \"%s\"}\r\n", irq_input_names[pin], GPIO_ReadInputDataBit(irqs[pin].gpio_port, GPIO_Pin) ? "on" : "off", global_state.datestring);
-  TM_USART_Puts(USART2, buf);
-  //print_irqs();
-#endif
-}
-
 
 void pwmin_init(){
 
@@ -403,86 +209,117 @@ void TIM2_IRQHandler(void) {
     TM_PWMIN_InterruptHandler(&PWMIN2_Data);
 }
 
-void pwm_init(){
-
 #if 0
-  pwms[PWM_FILL_PUMP].tim_data = &TIM1_Data;
-  pwms[PWM_FILL_PUMP].pwm_channel = TM_PWM_Channel_1;
-  pwms[PWM_FILL_PUMP].duty_percent = 0;
-  pwms[PWM_FILL_PUMP].run_for_ms = 0;
-  pwms[PWM_DRAIN_PUMP].tim_data = &TIM1_Data;
-  pwms[PWM_DRAIN_PUMP].pwm_channel = TM_PWM_Channel_4;
-  pwms[PWM_DRAIN_PUMP].duty_percent = 0;
-  pwms[PWM_DRAIN_PUMP].run_for_ms = 0;
-  pwms[PWM_COOLANT_PUMP].tim_data = &TIM3_Data;
-  pwms[PWM_COOLANT_PUMP].pwm_channel = TM_PWM_Channel_1;
-  pwms[PWM_COOLANT_PUMP].duty_percent = 0;
-  pwms[PWM_COOLANT_PUMP].run_for_ms = 0xffffffff;
-  pwms[PWM_SEWAGE_PUMP].tim_data = &TIM3_Data;
-  pwms[PWM_SEWAGE_PUMP].pwm_channel = TM_PWM_Channel_2;
-  pwms[PWM_SEWAGE_PUMP].duty_percent = 0;
-  pwms[PWM_SEWAGE_PUMP].run_for_ms = 0;
-  pwms[PWM_DEHUMI_PUMP].tim_data = &TIM3_Data;
-  pwms[PWM_DEHUMI_PUMP].pwm_channel = TM_PWM_Channel_3;
-  pwms[PWM_DEHUMI_PUMP].duty_percent = 0;
-  pwms[PWM_DEHUMI_PUMP].run_for_ms = 0;
-  pwms[PWM_PHDOWN_PUMP].tim_data = &TIM3_Data;
-  pwms[PWM_PHDOWN_PUMP].pwm_channel = TM_PWM_Channel_4;
-  pwms[PWM_PHDOWN_PUMP].duty_percent = 0;
-  pwms[PWM_PHDOWN_PUMP].run_for_ms = 0;
-  pwms[PWM_NUTRIENT1_PUMP].tim_data = &TIM4_Data;
-  pwms[PWM_NUTRIENT1_PUMP].pwm_channel = TM_PWM_Channel_3;
-  pwms[PWM_NUTRIENT1_PUMP].duty_percent = 0;
-  pwms[PWM_NUTRIENT1_PUMP].run_for_ms = 0;
-  pwms[PWM_NUTRIENT2_PUMP].tim_data = &TIM9_Data;
-  pwms[PWM_NUTRIENT2_PUMP].pwm_channel = TM_PWM_Channel_1;
-  pwms[PWM_NUTRIENT2_PUMP].duty_percent = 0;
-  pwms[PWM_NUTRIENT2_PUMP].run_for_ms = 0;
-  pwms[PWM_NUTRIENT3_PUMP].tim_data = &TIM9_Data;
-  pwms[PWM_NUTRIENT3_PUMP].pwm_channel = TM_PWM_Channel_2;
-  pwms[PWM_NUTRIENT3_PUMP].duty_percent = 0;
-  pwms[PWM_NUTRIENT3_PUMP].run_for_ms = 0;
-  pwms[PWM_DEEP_RED_LEDS].tim_data = &TIM12_Data;
-  pwms[PWM_DEEP_RED_LEDS].pwm_channel = TM_PWM_Channel_1;
-  pwms[PWM_DEEP_RED_LEDS].duty_percent = 0;
-  pwms[PWM_DEEP_RED_LEDS].run_for_ms = 0;
-  pwms[PWM_STIRRER_MOTORS].tim_data = &TIM12_Data;
-  pwms[PWM_STIRRER_MOTORS].pwm_channel = TM_PWM_Channel_2;
-  pwms[PWM_STIRRER_MOTORS].duty_percent = 0;
-  pwms[PWM_STIRRER_MOTORS].run_for_ms = 0;
 
-  // 14kHz =~ 71us cycle time
-  TM_PWM_InitTimer(TIM1, &TIM1_Data, 14000);
-  TM_PWM_InitTimer(TIM3, &TIM3_Data, 14000);
-  //TM_PWM_InitTimer(TIM4, &TIM4_Data, 14000);
-  //TM_PWM_InitTimer(TIM9, &TIM9_Data, 14000);
-  //TM_PWM_InitTimer(TIM12, &TIM12_Data, 14000);
+void timer_interrupt_init (void)
+{
+  NVIC_InitTypeDef NVIC_InitStructure;
+  RCC_ClocksTypeDef RCC_Clocks;
+  /* Enable the timer global Interrupt */
+  NVIC_InitStructure.NVIC_IRQChannel = TIM3_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init (&amp;NVIC_InitStructure);
+}
+
+void timer_init (void)
+{
   
-  TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PE9
-  TM_PWM_InitChannel(&TIM1_Data, TM_PWM_Channel_4, TM_PWM_PinsPack_2); // PE14
-  TM_PWM_InitChannel(&TIM3_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PB4
-  TM_PWM_InitChannel(&TIM3_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_2); // PB5
-  TM_PWM_InitChannel(&TIM3_Data, TM_PWM_Channel_3, TM_PWM_PinsPack_2); // PC8
-  TM_PWM_InitChannel(&TIM3_Data, TM_PWM_Channel_4, TM_PWM_PinsPack_2); // PC9
-  TM_PWM_InitChannel(&TIM4_Data, TM_PWM_Channel_3, TM_PWM_PinsPack_1); // PB8
-  TM_PWM_InitChannel(&TIM9_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_2); // PE5
-  TM_PWM_InitChannel(&TIM9_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_2); // PE6
-  TM_PWM_InitChannel(&TIM12_Data, TM_PWM_Channel_1, TM_PWM_PinsPack_1); // PB14
-  TM_PWM_InitChannel(&TIM12_Data, TM_PWM_Channel_2, TM_PWM_PinsPack_1); // PB15
+  RCC_ClocksTypeDef RCC_Clocks;
+  RCC_GetClocksFreq (&amp;RCC_Clocks);
+  uint32_t multiplier;
+  if (RCC_Clocks.PCLK1_Frequency == RCC_Clocks.SYSCLK_Frequency) {
+    multiplier = 1;
+  } else {
+    multiplier = 2;
+  }
+  uint32_t TIM3CLK_Frequency = multiplier * RCC_Clocks.PCLK1_Frequency;
+  uint32_t TIM3COUNTER_Frequency = 1000000;
+  uint16_t prescaler = (TIM3CLK_Frequency / TIM3COUNTER_Frequency) - 1;
+  uint16_t reload = (25) - 1;
+  
+  /* make sure the peripheral is clocked */
+  RCC_APB1PeriphClockCmd (RCC_APB1Periph_TIM3, ENABLE);
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+  /* set everything back to default values */
+  TIM_TimeBaseStructInit (&amp;TIM_TimeBaseStructure);
+  /* only changes from the defaults are needed */
+  TIM_TimeBaseStructure.TIM_Period = reload;
+  TIM_TimeBaseStructure.TIM_Prescaler = prescaler;
+  TIM_TimeBaseInit (TIM3, &amp;TIM_TimeBaseStructure);
+}
 
-  TM_PWM_SetChannelPercent(pwms[PWM_FILL_PUMP].tim_data, pwms[PWM_FILL_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_DRAIN_PUMP].tim_data, pwms[PWM_DRAIN_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_COOLANT_PUMP].tim_data, pwms[PWM_COOLANT_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_SEWAGE_PUMP].tim_data, pwms[PWM_SEWAGE_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_DEHUMI_PUMP].tim_data, pwms[PWM_DEHUMI_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_PHDOWN_PUMP].tim_data, pwms[PWM_PHDOWN_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_NUTRIENT1_PUMP].tim_data, pwms[PWM_NUTRIENT1_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_NUTRIENT2_PUMP].tim_data, pwms[PWM_NUTRIENT2_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_NUTRIENT3_PUMP].tim_data, pwms[PWM_NUTRIENT3_PUMP].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_DEEP_RED_LEDS].tim_data, pwms[PWM_DEEP_RED_LEDS].pwm_channel, 0);
-  TM_PWM_SetChannelPercent(pwms[PWM_STIRRER_MOTORS].tim_data, pwms[PWM_STIRRER_MOTORS].pwm_channel, 0);
+void timer_start (void)
+{
+  TIM_Cmd (TIM3, ENABLE);
+}
 
+void timer_stop (void)
+{
+  TIM_Cmd (TIM3, DISABLE);
+}
+
+void timer_interrupt_enable (void)
+{
+  /*
+   * It is important to clear any pending interrupt flags since the timer
+   * has been free-running since we last used it and that will generate
+   * interrupts on overflow even though the associated interrupt event has
+   * not been enabled.
+   */
+  TIM_ClearITPendingBit (TIM3, TIM_IT_Update);
+  /* put the counter into a known state */
+  TIM_SetCounter (TIM3, 0);
+  TIM_ITConfig (TIM3, TIM_IT_Update, ENABLE);
+}
+
+void timer_interrupt_disable (void)
+{
+  TIM_ITConfig (TIM3, TIM_IT_Update, DISABLE);
+}
+
+
+
+void dosing_pump_timer_init(){
+  /* make sure the peripheral is clocked */
+  RCC_APB1PeriphClockCmd (RCC_APB1Periph_TIM3, ENABLE);
+  RCC_ClocksTypeDef RCC_Clocks;
+  RCC_GetClocksFreq (&RCC_Clocks);
+  uint32_t multiplier;
+  if (RCC_Clocks.PCLK1_Frequency == RCC_Clocks.SYSCLK_Frequency) {
+    multiplier = 1;
+  } else {
+    multiplier = 2;
+  }
+  uint32_t TIM3CLK_Frequency = multiplier * RCC_Clocks.PCLK1_Frequency;
+  uint32_t TIM3COUNTER_Frequency = 1024;
+  uint16_t prescaler = (TIM3CLK_Frequency / TIM3COUNTER_Frequency) - 1;
+  uint16_t reload = (25) - 1;    // Tevt = 25 us
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+  /* set everything back to default values */
+  TIM_TimeBaseStructInit (&TIM_TimeBaseStructure);
+  /* only changes from the defaults are needed */
+  TIM_TimeBaseStructure.TIM_Period = reload;
+  TIM_TimeBaseStructure.TIM_Prescaler = prescaler;
+  TIM_TimeBaseInit (TIM3, &TIM_TimeBaseStructure);
+}
 #endif
+
+void TIM3_IRQHandler(void) {
+  uint8_t i, j = 0;
+  if (TIM_GetITStatus (TIM3, TIM_IT_Update) != RESET) {
+    for (i=0; i<NUM_NUTRIENT_PUMPS; i++){
+      uint8_t j = nutrient_pumps[i].gpio_output;
+      gpio_outputs[j].run_for_ms = 0;
+      gpio_outputs[j].desired_state = 0;
+      GPIO_WriteBit(gpio_outputs[j].gpio_port, gpio_outputs[j].gpio_pin, 0);
+    }
+    gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = 0;
+    gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].desired_state = 0;
+    GPIO_WriteBit(gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].gpio_port, gpio_outputs[j].gpio_pin, 0);
+    TIM_ClearITPendingBit (TIM3, TIM_IT_Update);
+  }
 }
 
 void switch_relay(output_relay_struct_t * relay, uint8_t action){
