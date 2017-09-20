@@ -212,6 +212,26 @@ void TIM2_IRQHandler(void) {
 
 #if 1
 
+void TIM3_IRQHandler(void) {
+  uint8_t i, j = 0;
+  if (TIM_GetITStatus (TIM3, TIM_IT_Update) != RESET) {
+    for (i=0; i<NUM_NUTRIENT_PUMPS; i++){
+      uint8_t j = nutrient_pumps[i].gpio_output;
+      gpio_outputs[j].run_for_ms = 0;
+      gpio_outputs[j].desired_state = 0;
+      GPIO_WriteBit(gpio_outputs[j].gpio_port, gpio_outputs[j].gpio_pin, 0);
+    }
+    gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = 0;
+    gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].desired_state = 0;
+    GPIO_WriteBit(gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].gpio_port, gpio_outputs[j].gpio_pin, 0);
+    TIM_ClearITPendingBit (TIM3, TIM_IT_Update);
+
+    dosing_pump_timer_stop();
+    dosing_pump_timer_interrupt_disable();
+    TM_USART_Puts(USART2, "{\"event\": \"Stopped dosing pump by Interrupt\"}");
+  }
+}
+
 void dosing_pump_timer_interrupt_init (void)
 {
   NVIC_InitTypeDef NVIC_InitStructure;
@@ -281,22 +301,6 @@ void dosing_pump_timer_interrupt_disable (void)
 
 
 #endif
-
-void TIM3_IRQHandler(void) {
-  uint8_t i, j = 0;
-  if (TIM_GetITStatus (TIM3, TIM_IT_Update) != RESET) {
-    for (i=0; i<NUM_NUTRIENT_PUMPS; i++){
-      uint8_t j = nutrient_pumps[i].gpio_output;
-      gpio_outputs[j].run_for_ms = 0;
-      gpio_outputs[j].desired_state = 0;
-      GPIO_WriteBit(gpio_outputs[j].gpio_port, gpio_outputs[j].gpio_pin, 0);
-    }
-    gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = 0;
-    gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].desired_state = 0;
-    GPIO_WriteBit(gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].gpio_port, gpio_outputs[j].gpio_pin, 0);
-    TIM_ClearITPendingBit (TIM3, TIM_IT_Update);
-  }
-}
 
 void switch_relay(output_relay_struct_t * relay, uint8_t action){
   

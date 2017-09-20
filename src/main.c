@@ -808,6 +808,7 @@ void gpio_ctrl(void){
     if (global_state.reservoir_state != EMERGENCY_STOP) {
       GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
       if ((run_on_timer) && (!GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin))) {
+        dosing_pump_timer_interrupt_enable();
         dosing_pump_timer_init(gpio_outputs[i].run_for_ms);
         dosing_pump_timer_start();
       }
