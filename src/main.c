@@ -37,8 +37,25 @@ uint32_t capsense_data[2];
 
 char dummy_datestring[] = "00.00.0000 00:00:00";
 volatile global_state_struct_t global_state = {
-  .sewage_tank_empty = 1,
-  .drain_cycle_active = 0,
+  .sewage_pump_blocked    = 0,
+  .sewage_tank_full       = 0,
+  .sewage_tank_empty      = 0,
+  .drain_cycle_active     = 0,
+  .adjusting_ph           = 0,
+  .adding_nutrients       = 0,
+  .stirring_nutrients     = 0,
+  .nutrients_done         = 0,
+
+  .reservoir_alarm        = 0,
+  .reservoir_max          = 0,
+  .reservoir_min          = 0,
+  .water_tank_empty       = 0,
+
+  .active_dosing_pump_gpio = 0xff,
+
+  .system_uptime = 0,
+  .i2c_errors = 0,
+  .i2c_restarts = 0,
   .reservoir_state = NORMAL_IDLE,
   .datestring = dummy_datestring,
 };
@@ -48,13 +65,6 @@ uint8_t capsense_capdac = 0x0;
 uint16_t capsense_offset = 0x0;
 uint16_t capsense_gain = 0x7fff;
 
-/* TODO: extend all name arrays that will have RRDs by a column "ds_name"
-  and output them accordingly.
-
-  Also add unix timestamps to all events and make them RRD compatible
-*/
-
-// Max ds_name length is 19 chars (+ \0 = 20)
 
 char irq_input_names[NUM_IRQ_PINS][2][MAX_SENSOR_NAME_LENGTH + 1] = {
   { "Blue Button", "blue_button" },
@@ -158,7 +168,7 @@ int main(void) {
   update_datestring();
   
   TM_USART_Init(USART2, TM_USART_PinsPack_1, 115200);
-  sprintf(buf, "{\"event\": \"System Startup\", \"sysclk_frequency\": %d, \"time\": \"%s\"}\r\n", RCC_Clocks.SYSCLK_Frequency, global_state.datestring);
+  sprintf(buf, "{\"event\": \"System Startup\", \"sysclk_frequency\": %d, \"pclk1_frequency\": %d, \"time\": \"%s\"}\r\n", RCC_Clocks.SYSCLK_Frequency, RCC_Clocks.PCLK1_Frequency, global_state.datestring);
   TM_USART_Puts(USART2, buf);
 
 
@@ -300,10 +310,10 @@ int main(void) {
     command_parser();
     light_scheduler();
     res_temp_ctrl();
-    nutrient_pump_ctrl();
     sewage_pump_ctrl();
-    ph_ctrl();
     reservoir_level_ctrl();
+    nutrient_pump_ctrl();
+    ph_ctrl();
     gpio_ctrl();
 
 
@@ -326,10 +336,10 @@ void set_defaults(void){
   nutrient_pumps[2].ms_per_ml = 1020;
   nutrient_pumps[2].ml_per_10l = 2.5;
 
-  ph_setpoints.min_ph = 5.8f;
+  ph_setpoints.min_ph = 5.6f;
   ph_setpoints.max_ph = 6.0f;
   ph_setpoints.ms_per_ml = 970;
-  ph_setpoints.ml_per_ph_per_10l = 0.2f;
+  ph_setpoints.ml_per_ph_per_10l = 0.4f;
 
   coolant_setpoints.max_temp = 16.49f;
   coolant_setpoints.min_temp = 16.41f;
@@ -563,11 +573,11 @@ void reservoir_level_ctrl(void){
       break;
 
     case MANUAL_DRAIN:
-      gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 1000;
+      gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 5000;
       break;
 
     case MANUAL_FILL:
-      gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 1000;
+      gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
       break;
 
     case LEVEL_ERROR:
@@ -602,6 +612,7 @@ void nutrient_pump_ctrl(void){
   }else if (global_state.adding_nutrients){
     if (gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state == 1){
       gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state = 0;
+      gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].run_for_ms = 0;
       sprintf(buf, "{\"event\": \"%s turned off\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_STIRRER_MOTORS][0], global_state.datestring);
       TM_USART_Puts(USART2, buf);
     }
@@ -727,29 +738,51 @@ void ph_ctrl(void){
 }
 
 void gpio_ctrl(void){
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
+
   uint8_t i = 0;
   uint8_t run_on_timer = 0;
   static uint32_t last_time = 0;
   if (last_time == 0) last_time = TM_Time;
 
+  uint32_t t_delay = TM_Time - last_time;
+
   // Schedule outputs to run for a specific time
-  if ((TM_Time - last_time) >= 1) {
+  if (t_delay >= 1) {
     for (i=0; i<NUM_GPIO_OUTPUTS; i++) {
+      uint8_t desired_state = 0;
       uint32_t run_for_ms = gpio_outputs[i].run_for_ms;
       if (run_for_ms != 0xffffffff) {
         if (run_for_ms > 0) {
-          gpio_outputs[i].desired_state = 1;
-          gpio_outputs[i].run_for_ms -= (TM_Time - last_time);
-          if (gpio_outputs[i].run_for_ms > run_for_ms)
-            gpio_outputs[i].run_for_ms = 0;
+          desired_state = 1;
+          if (gpio_outputs[i].desired_state == 1){
+            gpio_outputs[i].run_for_ms -= t_delay;
+            if (gpio_outputs[i].run_for_ms > run_for_ms){
+              desired_state = 0;
+              gpio_outputs[i].run_for_ms = 0;
+              sprintf(buf, "{\"event\": \"Stopped dosing pump by gpio_ctrl() with delay\", \"name\": \"%s\", \"delay\": %d}\r\n", gpio_output_names[i][0], t_delay);
+              TM_USART_Puts(USART2, buf);
+            }
+          }
         } else {
-          gpio_outputs[i].desired_state = 0;
+          if (gpio_outputs[i].desired_state == 1){
+            desired_state = 0;
+            sprintf(buf, "{\"event\": \"Stopped dosing pump by gpio_ctrl() on time\", \"name\": \"%s\"}\r\n", gpio_output_names[i][0]);
+            TM_USART_Puts(USART2, buf);
+          }
         }
+        gpio_outputs[i].desired_state = desired_state;
       }
     }
     last_time = TM_Time;
   }
 
+  if (global_state.active_dosing_pump_gpio != 0xff){
+    sprintf(buf, "{\"event\": \"Stopped dosing pump by Interrupt\", \"name\": \"%s\"}\r\n", gpio_output_names[global_state.active_dosing_pump_gpio][0]);
+    TM_USART_Puts(USART2, buf);
+    global_state.active_dosing_pump_gpio = 0xff;
+  }
 
   // Drive the outputs
   for (i=0; i<NUM_GPIO_OUTPUTS; i++) {
@@ -807,11 +840,15 @@ void gpio_ctrl(void){
     // finally set the actual GPIO if we are not in emergency stop mode
     if (global_state.reservoir_state != EMERGENCY_STOP) {
       if ((run_on_timer) && (gpio_outputs[i].run_for_ms) && (!GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin))) {
-        TM_USART_Puts(USART2, "{\"event\": \"Started dosing pump timer\"}\r\n");
-        dosing_pump_timer_init(gpio_outputs[i].run_for_ms);
-        dosing_pump_timer_interrupt_init ();
-        dosing_pump_timer_start();
-        dosing_pump_timer_interrupt_enable();
+        if (gpio_outputs[i].run_for_ms <= 19000){
+          TM_USART_Puts(USART2, "{\"event\": \"Started dosing pump timer\"}\r\n");
+          dosing_pump_timer_init(gpio_outputs[i].run_for_ms);
+          dosing_pump_timer_interrupt_init ();
+          dosing_pump_timer_start();
+          dosing_pump_timer_interrupt_enable();
+        } else {
+          TM_USART_Puts(USART2, "{\"event\": \"Timer interval too long - Running under gpio_ctrl()\"}\r\n");
+        }
       }
       GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
     } else {
@@ -821,6 +858,8 @@ void gpio_ctrl(void){
 }
 
 void exhaust_ctrl(void){
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
 
   uint8_t desired_state = 0;
   uint8_t current_state = GPIO_ReadInputDataBit(relays[RELAY_EXHAUST].gpio_port, relays[RELAY_EXHAUST].gpio_pin);
@@ -834,14 +873,14 @@ void exhaust_ctrl(void){
 
   if (desired_state != current_state) {
     GPIO_WriteBit(relays[RELAY_EXHAUST].gpio_port, relays[RELAY_EXHAUST].gpio_pin, desired_state);
-    char buf[MAX_STR_LEN];
-    memset(buf, 0, sizeof(buf));
     sprintf(buf, "{\"event\": \"Exhaust turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }
 }
 
 void res_temp_ctrl(void){
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
 
   uint8_t current_state = gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state;
   uint8_t desired_state = current_state;
@@ -855,14 +894,14 @@ void res_temp_ctrl(void){
   if (desired_state != current_state) {
     gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state = desired_state;
     gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].run_for_ms = 0xffffffff;
-    char buf[MAX_STR_LEN];
-    memset(buf, 0, sizeof(buf));
     sprintf(buf, "{\"event\": \"Coolant pump turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }
 }
 
 void light_scheduler(void) {
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
 
   uint8_t desired_state = 0;
 
@@ -886,8 +925,6 @@ void light_scheduler(void) {
 
   if (light_timer.state != desired_state) {
     GPIO_WriteBit(relays[RELAY_LIGHT].gpio_port, relays[RELAY_LIGHT].gpio_pin, desired_state);
-    char buf[MAX_STR_LEN];
-    memset(buf, 0, sizeof(buf));
     sprintf(buf, "{\"event\": \"Main Light turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }

@@ -155,6 +155,8 @@ void host_cmd_get(char * item) {
     print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
     print_irqs();
     print_settings();
+    print_ph();
+    print_ec();
     print_state();
   }
   else if (strncmp(item, "ph", 2) == 0)

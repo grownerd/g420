@@ -217,10 +217,12 @@ void TIM3_IRQHandler(void) {
   if (TIM_GetITStatus (TIM3, TIM_IT_Update) != RESET) {
     for (i=0; i<NUM_NUTRIENT_PUMPS; i++){
       uint8_t j = nutrient_pumps[i].gpio_output;
+      if (GPIO_ReadInputDataBit(gpio_outputs[j].gpio_port, gpio_outputs[j].gpio_pin)) global_state.active_dosing_pump_gpio = j;
       gpio_outputs[j].run_for_ms = 0;
       gpio_outputs[j].desired_state = 0;
       GPIO_WriteBit(gpio_outputs[j].gpio_port, gpio_outputs[j].gpio_pin, 0);
     }
+    if (GPIO_ReadInputDataBit(gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].gpio_port, gpio_outputs[j].gpio_pin)) global_state.active_dosing_pump_gpio = GPIO_OUTPUT_PHDOWN_PUMP;
     gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = 0;
     gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].desired_state = 0;
     GPIO_WriteBit(gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].gpio_port, gpio_outputs[j].gpio_pin, 0);
@@ -229,7 +231,7 @@ void TIM3_IRQHandler(void) {
     dosing_pump_timer_stop();
     dosing_pump_timer_interrupt_disable();
   }
-    TM_USART_Puts(USART2, "{\"event\": \"Stopped dosing pump by Interrupt\"}\r\n");
+
 }
 
 void dosing_pump_timer_interrupt_init (void)
@@ -245,6 +247,9 @@ void dosing_pump_timer_interrupt_init (void)
 }
 
 void dosing_pump_timer_init(uint32_t run_for_ms){
+  char buf[MAX_STR_LEN];
+  memset(buf, 0, sizeof(buf));
+
   /* make sure the peripheral is clocked */
   RCC_APB1PeriphClockCmd (RCC_APB1Periph_TIM3, ENABLE);
   RCC_ClocksTypeDef RCC_Clocks;
@@ -256,11 +261,10 @@ void dosing_pump_timer_init(uint32_t run_for_ms){
     multiplier = 2;
   }
 
-  uint32_t counter_freq = 3000;
+  uint32_t TIM3COUNTER_Frequency = 3000;
   uint32_t TIM3CLK_Frequency = multiplier * RCC_Clocks.PCLK1_Frequency;
-  uint32_t TIM3COUNTER_Frequency = counter_freq;
   uint16_t prescaler = (TIM3CLK_Frequency / TIM3COUNTER_Frequency) - 1;
-  uint16_t reload = (run_for_ms * 10000)/counter_freq - 1;
+  uint16_t reload = ((run_for_ms * 10000)/TIM3COUNTER_Frequency) - 1;
 
   TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
   /* set everything back to default values */
@@ -269,6 +273,9 @@ void dosing_pump_timer_init(uint32_t run_for_ms){
   TIM_TimeBaseStructure.TIM_Period = reload;
   TIM_TimeBaseStructure.TIM_Prescaler = prescaler;
   TIM_TimeBaseInit (TIM3, &TIM_TimeBaseStructure);
+
+  sprintf("{\"event\": \"Initialized Timer\", \"reload\": %d, \"prescaler\": %d, \"frequency\": %d}\r\n", buf, reload, prescaler, TIM3CLK_Frequency);
+  TM_USART_Puts(USART2, buf);
 }
 
 void dosing_pump_timer_start (void)

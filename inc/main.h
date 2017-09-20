@@ -216,6 +216,8 @@ typedef struct global_state {
   uint8_t water_tank_empty      : 1;
   uint8_t                       : 4;
 
+  uint8_t active_dosing_pump_gpio;
+
   uint32_t system_uptime;
   uint32_t i2c_errors;
   uint32_t i2c_restarts;

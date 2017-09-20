@@ -236,7 +236,7 @@ void read_flash(void){
   uint8_t* address = &flash_data[0];
  
   if (flash_data[0] == 0xff){
-    sprintf(buf, "{\"event\": \"Flash empty - Setting Defaults\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    sprintf(buf, "{\"error\": \"Flash empty - Setting Defaults\", \"time\": \"%s\"}\r\n", global_state.datestring);
     set_defaults();
   }else{
     memcpy(&light_timer, address, sizeof(light_timer));
