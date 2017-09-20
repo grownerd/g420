@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stm32f4xx.h>
+#include <stm32f4xx_rcc.h>
 #include <stm32f4xx_i2c.h>
 #include <stm32f4xx_usart.h>
 #include <stm32f4xx_gpio.h>
@@ -209,9 +210,9 @@ void TIM2_IRQHandler(void) {
     TM_PWMIN_InterruptHandler(&PWMIN2_Data);
 }
 
-#if 0
+#if 1
 
-void timer_interrupt_init (void)
+void dosing_pump_timer_interrupt_init (void)
 {
   NVIC_InitTypeDef NVIC_InitStructure;
   RCC_ClocksTypeDef RCC_Clocks;
@@ -220,47 +221,46 @@ void timer_interrupt_init (void)
   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
   NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-  NVIC_Init (&amp;NVIC_InitStructure);
+  NVIC_Init (&NVIC_InitStructure);
 }
 
-void timer_init (void)
-{
-  
+void dosing_pump_timer_init(uint32_t run_for_ms){
+  /* make sure the peripheral is clocked */
+  RCC_APB1PeriphClockCmd (RCC_APB1Periph_TIM3, ENABLE);
   RCC_ClocksTypeDef RCC_Clocks;
-  RCC_GetClocksFreq (&amp;RCC_Clocks);
+  RCC_GetClocksFreq (&RCC_Clocks);
   uint32_t multiplier;
   if (RCC_Clocks.PCLK1_Frequency == RCC_Clocks.SYSCLK_Frequency) {
     multiplier = 1;
   } else {
     multiplier = 2;
   }
+
   uint32_t TIM3CLK_Frequency = multiplier * RCC_Clocks.PCLK1_Frequency;
-  uint32_t TIM3COUNTER_Frequency = 1000000;
+  uint32_t TIM3COUNTER_Frequency = 10000;
   uint16_t prescaler = (TIM3CLK_Frequency / TIM3COUNTER_Frequency) - 1;
-  uint16_t reload = (25) - 1;
-  
-  /* make sure the peripheral is clocked */
-  RCC_APB1PeriphClockCmd (RCC_APB1Periph_TIM3, ENABLE);
+  uint16_t reload = (run_for_ms * 10) - 1;    // Tevt = 25 us
+
   TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
   /* set everything back to default values */
-  TIM_TimeBaseStructInit (&amp;TIM_TimeBaseStructure);
+  TIM_TimeBaseStructInit (&TIM_TimeBaseStructure);
   /* only changes from the defaults are needed */
   TIM_TimeBaseStructure.TIM_Period = reload;
   TIM_TimeBaseStructure.TIM_Prescaler = prescaler;
-  TIM_TimeBaseInit (TIM3, &amp;TIM_TimeBaseStructure);
+  TIM_TimeBaseInit (TIM3, &TIM_TimeBaseStructure);
 }
 
-void timer_start (void)
+void dosing_pump_timer_start (void)
 {
   TIM_Cmd (TIM3, ENABLE);
 }
 
-void timer_stop (void)
+void dosing_pump_timer_stop (void)
 {
   TIM_Cmd (TIM3, DISABLE);
 }
 
-void timer_interrupt_enable (void)
+void dosing_pump_timer_interrupt_enable (void)
 {
   /*
    * It is important to clear any pending interrupt flags since the timer
@@ -274,36 +274,12 @@ void timer_interrupt_enable (void)
   TIM_ITConfig (TIM3, TIM_IT_Update, ENABLE);
 }
 
-void timer_interrupt_disable (void)
+void dosing_pump_timer_interrupt_disable (void)
 {
   TIM_ITConfig (TIM3, TIM_IT_Update, DISABLE);
 }
 
 
-
-void dosing_pump_timer_init(){
-  /* make sure the peripheral is clocked */
-  RCC_APB1PeriphClockCmd (RCC_APB1Periph_TIM3, ENABLE);
-  RCC_ClocksTypeDef RCC_Clocks;
-  RCC_GetClocksFreq (&RCC_Clocks);
-  uint32_t multiplier;
-  if (RCC_Clocks.PCLK1_Frequency == RCC_Clocks.SYSCLK_Frequency) {
-    multiplier = 1;
-  } else {
-    multiplier = 2;
-  }
-  uint32_t TIM3CLK_Frequency = multiplier * RCC_Clocks.PCLK1_Frequency;
-  uint32_t TIM3COUNTER_Frequency = 1024;
-  uint16_t prescaler = (TIM3CLK_Frequency / TIM3COUNTER_Frequency) - 1;
-  uint16_t reload = (25) - 1;    // Tevt = 25 us
-  TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-  /* set everything back to default values */
-  TIM_TimeBaseStructInit (&TIM_TimeBaseStructure);
-  /* only changes from the defaults are needed */
-  TIM_TimeBaseStructure.TIM_Period = reload;
-  TIM_TimeBaseStructure.TIM_Prescaler = prescaler;
-  TIM_TimeBaseInit (TIM3, &TIM_TimeBaseStructure);
-}
 #endif
 
 void TIM3_IRQHandler(void) {

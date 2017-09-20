@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stm32f4xx.h>
+#include <stm32f4xx_rcc.h>
 #include <stm32f4xx_i2c.h>
 #include <stm32f4xx_usart.h>
 #include <stm32f4xx_gpio.h>
@@ -145,6 +146,9 @@ int main(void) {
   global_state.system_uptime = 0;
   char buf[MAX_STR_LEN];
 
+  RCC_ClocksTypeDef RCC_Clocks;
+  RCC_GetClocksFreq (&RCC_Clocks);
+
   watchdog_barked = 0;
 
   set_defaults();
@@ -154,7 +158,7 @@ int main(void) {
   update_datestring();
   
   TM_USART_Init(USART2, TM_USART_PinsPack_1, 115200);
-  sprintf(buf, "{\"event\": \"System Startup\", \"time\": \"%s\"}\r\n", global_state.datestring);
+  sprintf(buf, "{\"event\": \"System Startup\", \"sysclk_frequency\": %d, \"time\": \"%s\"}\r\n", RCC_Clocks.SYSCLK_Frequency, global_state.datestring);
   TM_USART_Puts(USART2, buf);
 
 
@@ -471,6 +475,7 @@ void reservoir_level_ctrl(void){
 
       if ((global_state.reservoir_min) && (!global_state.reservoir_max) && (!global_state.reservoir_alarm)){
         if (TM_Time >= (stirring_time + misc_settings.res_settling_time_s * 1000)) {
+          stirring_time = 0;
           global_state.stirring_nutrients = 0;
           if (!global_state.nutrients_done)
             global_state.adding_nutrients = 1;
@@ -722,7 +727,8 @@ void ph_ctrl(void){
 }
 
 void gpio_ctrl(void){
-  uint8_t i;
+  uint8_t i = 0;
+  uint8_t run_on_timer = 0;
   static uint32_t last_time = 0;
   if (last_time == 0) last_time = TM_Time;
 
@@ -773,15 +779,19 @@ void gpio_ctrl(void){
         break;
 
       case GPIO_OUTPUT_PHDOWN_PUMP:
+        run_on_timer = 1;
         break;
 
       case GPIO_OUTPUT_NUTRIENT1_PUMP:
+        run_on_timer = 1;
         break;
 
       case GPIO_OUTPUT_NUTRIENT2_PUMP:
+        run_on_timer = 1;
         break;
 
       case GPIO_OUTPUT_NUTRIENT3_PUMP:
+        run_on_timer = 1;
         break;
 
       case GPIO_OUTPUT_DEEP_RED_LEDS:
@@ -795,10 +805,15 @@ void gpio_ctrl(void){
     }
 
     // finally set the actual GPIO if we are not in emergency stop mode
-    if (global_state.reservoir_state != EMERGENCY_STOP)
+    if (global_state.reservoir_state != EMERGENCY_STOP) {
       GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
-    else
+      if ((run_on_timer) && (!GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin))) {
+        dosing_pump_timer_init(gpio_outputs[i].run_for_ms);
+        dosing_pump_timer_start();
+      }
+    } else {
       GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, 0);
+    }
   }
 }
 

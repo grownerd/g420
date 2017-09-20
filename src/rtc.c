@@ -78,7 +78,7 @@ void print_time(void) {
     TM_RTC_GetDateTime(&Time, TM_RTC_Format_BIN);
     
     /* Format time */
-    sprintf(buf, "{\"name\":\"datetime\",\"content\":{\"date\":\"%02d.%02d.%04d\", \"time\":\"%02d:%02d:%02d.%06d\", \"unix\":%u}}\r\n",
+    sprintf(buf, "{\"name\":\"datetime\",\"content\":[{\"date\":\"%02d.%02d.%04d\"}, {\"time\":\"%02d:%02d:%02d.%06d\"}, {\"unix\":%u}]}\r\n",
                 Time.date,
                 Time.month,
                 Time.year + 2000,

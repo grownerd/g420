@@ -460,29 +460,47 @@ void set_gpio_output(char * val) {
   if (gpio_val > 1)
     gpio_val = 1;
 
+  uint32_t runfor = 0;
+  if (gpio_val) runfor = 0xffffffff;
+
     sprintf(buf, "{\"event\": \"Setting GPIO Output %s to %d%%\", \"time\": \"%s\"}\r\n", part[0], gpio_val, global_state.datestring);
 
   //snprintf(buf, MAX_STR_LEN, "Setting PWM Channel \"%s\" to %d%%\r\n",part[0], gpio_val);
   TM_USART_Puts(USART2, buf);
 
-  if (strncmp(part[0], "fill", 4) == 0) {
-    gpio_outputs[GPIO_OUTPUT_FILL_PUMP].desired_state = gpio_val;
-  } else if (strncmp(part[0], "drain", 5) == 0) {
-    gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].desired_state = gpio_val;
-  } else if (strncmp(part[0], "coolant", 7) == 0) {
+  if (strncmp(part[0], "coolant", 7) == 0) {
     gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state = gpio_val;
+    gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].run_for_ms = runfor;
+  } else if (strncmp(part[0], "stirrer", 7) == 0) {
+    gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state = gpio_val;
+    gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].run_for_ms = runfor;
+  } else if (strncmp(part[0], "deepred", 7) == 0) {
+    gpio_outputs[GPIO_OUTPUT_DEEP_RED_LEDS].desired_state = gpio_val;
+    gpio_outputs[GPIO_OUTPUT_DEEP_RED_LEDS].run_for_ms = runfor;
   } else if (strncmp(part[0], "sewage", 6) == 0) {
     gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].desired_state = gpio_val;
+    gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].run_for_ms = runfor;
   } else if (strncmp(part[0], "dehumi", 6) == 0) {
     gpio_outputs[GPIO_OUTPUT_DEHUMI_PUMP].desired_state = gpio_val;
+    gpio_outputs[GPIO_OUTPUT_DEHUMI_PUMP].run_for_ms = runfor;
   } else if (strncmp(part[0], "phdown", 6) == 0) {
     gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].desired_state = gpio_val;
-  } else if (strncmp(part[0], "nute1", 6) == 0) {
+    gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = runfor;
+  } else if (strncmp(part[0], "nute1", 5) == 0) {
     gpio_outputs[GPIO_OUTPUT_NUTRIENT1_PUMP].desired_state = gpio_val;
-  } else if (strncmp(part[0], "nute2", 6) == 0) {
+    gpio_outputs[GPIO_OUTPUT_NUTRIENT1_PUMP].run_for_ms = runfor;
+  } else if (strncmp(part[0], "nute2", 5) == 0) {
     gpio_outputs[GPIO_OUTPUT_NUTRIENT2_PUMP].desired_state = gpio_val;
-  } else if (strncmp(part[0], "nute3", 6) == 0) {
+    gpio_outputs[GPIO_OUTPUT_NUTRIENT2_PUMP].run_for_ms = runfor;
+  } else if (strncmp(part[0], "nute3", 5) == 0) {
     gpio_outputs[GPIO_OUTPUT_NUTRIENT3_PUMP].desired_state = gpio_val;
+    gpio_outputs[GPIO_OUTPUT_NUTRIENT3_PUMP].run_for_ms = runfor;
+  } else if (strncmp(part[0], "drain", 5) == 0) {
+    gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].desired_state = gpio_val;
+    gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = runfor;
+  } else if (strncmp(part[0], "fill", 4) == 0) {
+    gpio_outputs[GPIO_OUTPUT_FILL_PUMP].desired_state = gpio_val;
+    gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = runfor;
   }
 }
 

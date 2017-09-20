@@ -88,8 +88,14 @@ extern TM_PWMIN_t PWMIN1_Data, PWMIN2_Data;
 void exti_init(void);
 void gpio_init(void);
 void pwmin_init(void);
-void dosing_pump_timer_init();
 void switch_relay(output_relay_struct_t * relay, uint8_t action);
+
+void dosing_pump_timer_interrupt_init (void);
+void dosing_pump_timer_init(uint32_t run_for_ms);
+void dosing_pump_timer_start (void);
+void dosing_pump_timer_stop (void);
+void dosing_pump_timer_interrupt_enable (void);
+void dosing_pump_timer_interrupt_disable (void);
 
 #endif
 
