@@ -228,8 +228,8 @@ void TIM3_IRQHandler(void) {
 
     dosing_pump_timer_stop();
     dosing_pump_timer_interrupt_disable();
-    TM_USART_Puts(USART2, "{\"event\": \"Stopped dosing pump by Interrupt\"}");
   }
+    TM_USART_Puts(USART2, "{\"event\": \"Stopped dosing pump by Interrupt\"}\r\n");
 }
 
 void dosing_pump_timer_interrupt_init (void)
@@ -256,10 +256,11 @@ void dosing_pump_timer_init(uint32_t run_for_ms){
     multiplier = 2;
   }
 
+  uint32_t counter_freq = 3000;
   uint32_t TIM3CLK_Frequency = multiplier * RCC_Clocks.PCLK1_Frequency;
-  uint32_t TIM3COUNTER_Frequency = 10000;
+  uint32_t TIM3COUNTER_Frequency = counter_freq;
   uint16_t prescaler = (TIM3CLK_Frequency / TIM3COUNTER_Frequency) - 1;
-  uint16_t reload = (run_for_ms * 10) - 1;    // Tevt = 25 us
+  uint16_t reload = (run_for_ms * 10000)/counter_freq - 1;
 
   TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
   /* set everything back to default values */

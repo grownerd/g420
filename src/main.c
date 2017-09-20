@@ -99,8 +99,8 @@ char gpio_output_names[NUM_GPIO_OUTPUTS][2][MAX_OUTPUT_NAME_LENGTH + 1] = {
   { "Sewage Pump", "sewage_pump" },
   { "Dehumidifier Pump", "dehumi_pump" },
   { "PH Down Pump", "phdown_pump" },
-  { "Flora Micro Pump", "nut3_pump" },
-  { "Flora Gro Pump", "nut3_pump" },
+  { "Flora Micro Pump", "nut1_pump" },
+  { "Flora Gro Pump", "nut2_pump" },
   { "Flora Bloom Pump", "nut3_pump" },
   { "Deep Red Leds", "deep_red" },
   { "Nutrient Stirrers", "nut_stir" },
@@ -806,12 +806,14 @@ void gpio_ctrl(void){
 
     // finally set the actual GPIO if we are not in emergency stop mode
     if (global_state.reservoir_state != EMERGENCY_STOP) {
-      GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
-      if ((run_on_timer) && (!GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin))) {
-        dosing_pump_timer_interrupt_enable();
+      if ((run_on_timer) && (gpio_outputs[i].run_for_ms) && (!GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin))) {
+        TM_USART_Puts(USART2, "{\"event\": \"Started dosing pump timer\"}\r\n");
         dosing_pump_timer_init(gpio_outputs[i].run_for_ms);
+        dosing_pump_timer_interrupt_init ();
         dosing_pump_timer_start();
+        dosing_pump_timer_interrupt_enable();
       }
+      GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
     } else {
       GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, 0);
     }
