@@ -457,7 +457,6 @@ void reservoir_level_ctrl(void){
         } else {
           gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 5000;
           gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
-          global_state.stirring_nutrients = 1;
           global_state.reservoir_state = DRAIN_CYCLE_DRAINING;
           sprintf(buf, "{\"event\": \"Reservoir Draining started\", \"time\": \"%s\"}\r\n", global_state.datestring);
           break;
@@ -570,6 +569,7 @@ void reservoir_level_ctrl(void){
       global_state.reservoir_state = DRAIN_CYCLE_FILLING;
       sprintf(buf, "{\"event\": \"Reservoir Filling started\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
+      global_state.stirring_nutrients = 1;
       break;
 
     case MANUAL_DRAIN:
