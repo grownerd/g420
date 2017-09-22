@@ -339,7 +339,7 @@ void set_defaults(void){
   ph_setpoints.min_ph = 5.6f;
   ph_setpoints.max_ph = 6.0f;
   ph_setpoints.ms_per_ml = 970;
-  ph_setpoints.ml_per_ph_per_10l = 0.4f;
+  ph_setpoints.ml_per_ph_per_10l = 0.8f;
 
   coolant_setpoints.max_temp = 16.49f;
   coolant_setpoints.min_temp = 16.41f;
@@ -376,7 +376,7 @@ void set_defaults(void){
   misc_settings.ph4_v = 2.91;
   misc_settings.ph7_v = 2.60f;
   misc_settings.vcc_v = 2.94f;
-  misc_settings.res_settling_time_s = 300;
+  misc_settings.res_settling_time_s = 90;
 
 }
 
@@ -699,7 +699,9 @@ void ph_ctrl(void){
     if (!next_time) next_time = TM_Time + (misc_settings.res_settling_time_s * 1000);
     if (TM_Time >= next_time) {
       if (adc_ph.value >= ph_setpoints.max_ph) {
-        ph_delta = adc_ph.value - ph_setpoints.min_ph;
+        // aim for the middle between min and max
+        float ph_setpoint = ph_setpoints.max_ph - (ph_setpoints.max_ph - ph_setpoints.min_ph);
+        ph_delta = adc_ph.value - ph_setpoint;
 
         if (global_state.reservoir_alarm)
           liters_in_res = misc_settings.res_liters_alarm;
@@ -715,10 +717,7 @@ void ph_ctrl(void){
         global_state.adjusting_ph = 1;
         gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = ms_to_run;
 
-        sprintf(buf, "{\"info\": \"ph_down\", \"amount_ml\": %1.2f, \"liters_in_res\": %1.2f, \"ph_delta\": %1.2f, \"ts\": %d, \"time\": \"%s\"}\r\n", ml_to_add, liters_in_res, ph_delta, TM_Time, global_state.datestring);
-        TM_USART_Puts(USART2, buf);
-
-        sprintf(buf, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_PHDOWN_PUMP][0], gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms, global_state.datestring);
+        sprintf(buf, "{\"info\": \"ph_down\", \"amount_ml\": %1.2f, \"liters_in_res\": %1.2f, \"ph_delta\": %1.2f, \"ts\": %d, \"run_for_ms\": %d, \"time\": \"%s\"}\r\n", ml_to_add, liters_in_res, ph_delta, TM_Time, gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms, global_state.datestring);
         TM_USART_Puts(USART2, buf);
       } else {
         gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = 0;
@@ -730,8 +729,6 @@ void ph_ctrl(void){
   }
 
   if  ((gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms == 0) && (global_state.adjusting_ph)){
-    sprintf(buf, "{\"event\": \"%s turned off\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_PHDOWN_PUMP][0], global_state.datestring);
-    TM_USART_Puts(USART2, buf);
     global_state.adjusting_ph = 0;
     global_state.reservoir_state = NORMAL_IDLE;
   }
@@ -748,6 +745,12 @@ void gpio_ctrl(void){
 
   uint32_t t_delay = TM_Time - last_time;
 
+  if (global_state.active_dosing_pump_gpio != 0xff){
+    sprintf(buf, "{\"event\": \"Stopped dosing pump by Interrupt\", \"name\": \"%s\"}\r\n", gpio_output_names[global_state.active_dosing_pump_gpio][0]);
+    TM_USART_Puts(USART2, buf);
+    global_state.active_dosing_pump_gpio = 0xff;
+  }
+
   // Schedule outputs to run for a specific time
   if (t_delay >= 1) {
     for (i=0; i<NUM_GPIO_OUTPUTS; i++) {
@@ -761,7 +764,7 @@ void gpio_ctrl(void){
             if (gpio_outputs[i].run_for_ms > run_for_ms){
               desired_state = 0;
               gpio_outputs[i].run_for_ms = 0;
-              sprintf(buf, "{\"event\": \"Stopped dosing pump by gpio_ctrl() with delay\", \"name\": \"%s\", \"delay\": %d}\r\n", gpio_output_names[i][0], t_delay);
+              sprintf(buf, "{\"event\": \"Stopped timed gpio output by gpio_ctrl() with delay\", \"name\": \"%s\", \"delay\": %d}\r\n", gpio_output_names[i][0], t_delay);
               TM_USART_Puts(USART2, buf);
             }
           }
@@ -776,12 +779,6 @@ void gpio_ctrl(void){
       }
     }
     last_time = TM_Time;
-  }
-
-  if (global_state.active_dosing_pump_gpio != 0xff){
-    sprintf(buf, "{\"event\": \"Stopped dosing pump by Interrupt\", \"name\": \"%s\"}\r\n", gpio_output_names[global_state.active_dosing_pump_gpio][0]);
-    TM_USART_Puts(USART2, buf);
-    global_state.active_dosing_pump_gpio = 0xff;
   }
 
   // Drive the outputs

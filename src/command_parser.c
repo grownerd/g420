@@ -336,6 +336,9 @@ void set_misc(char * val) {
   } else if (strncmp(part[0], "sewage_run", 10) == 0) {
     misc_settings.sewage_pump_run_s = atof(part[1]);
 
+  } else if (strncmp(part[0], "ec_read_s", 9) == 0) {
+    misc_settings.fill_to_alarm_level = atoi(part[1]);
+
   } else if (strncmp(part[0], "ph7_ph", 6) == 0) {
     misc_settings.ph7_ph = atof(part[1]);
 
