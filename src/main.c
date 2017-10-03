@@ -855,11 +855,9 @@ void gpio_ctrl(void){
         } else {
           TM_USART_Puts(USART2, "{\"event\": \"Timer interval too long - Running under gpio_ctrl()\"}\r\n");
         }
-      }
-      if (GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin) != gpio_outputs[i].desired_state) {
-        GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
         print_gpio_outputs();
       }
+      GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
     } else {
       GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, 0);
     }
