@@ -123,7 +123,7 @@ char sensor_names[NUM_SENSORS][2][MAX_SENSOR_NAME_LENGTH + 1] = {
   { "Tent Temperature", "tent_temp" },
   { "Tent rel. Humidity", "tent_humi" },
   { "Tent Pressure", "tent_press" },
-  { "Reservoir pH", "res_ph" },
+  { "Reservoir Acidity", "res_ph" },
   { "Reservoir EC", "res_ec" },
 };
 
@@ -133,7 +133,7 @@ char unit_names[NUM_UNITS][MAX_UNIT_NAME_LENGTH + 1] = {
   "%",
   "l",
   "pH",
-  "S/cm",
+  "mS/cm",
   "V",
   "A",
 };
@@ -227,7 +227,7 @@ int main(void) {
   adc_ph.unit = PH;
 
   adc_ec.name = sensor_names[ADC_EC][0];
-  adc_ec.unit = S_CM;
+  adc_ec.unit = MS_CM;
 
 
   fdc1004_init();
@@ -286,13 +286,18 @@ int main(void) {
         if (bme280_init_result != 0) {
           sprintf(buf, "{\"event\": \"BME280 Initialization Error!\", \"time\": \"%s\"}\r\n", global_state.datestring);
           TM_USART_Puts(USART2, buf);
-          // force a reboot if the bus has been restarted too often
-          if ((global_state.i2c_restarts > misc_settings.i2c_max_restarts)
+
+          uint32_t reading_age = (TM_Time - global_state.i2c_last_good_reading);
+          if (reading_age > global_state.i2c_max_reading_age_s)
+            global_state.i2c_max_reading_age_s = reading_age;
+
+          // force a reboot if the reading gets too stale and there is nothing else going on
+          if ((reading_age > misc_settings.i2c_max_reading_age_s)
             && (!global_state.adjusting_ph)
             && (!global_state.adding_nutrients)
             && (!global_state.drain_cycle_active)
             && (global_state.reservoir_state == NORMAL_IDLE)){
-            sprintf(buf, "{\"event\": \"Too many I2C Errors - Forcing Reboot\", \"time\": \"%s\"}\r\n", global_state.datestring);
+            sprintf(buf, "{\"event\": \"Last good I2C Reading is too old - Forcing Reboot\", \"time\": \"%s\"}\r\n", global_state.datestring);
             TM_USART_Puts(USART2, buf);
             while (1);
           }
@@ -339,7 +344,7 @@ void set_defaults(void){
   ph_setpoints.min_ph = 5.6f;
   ph_setpoints.max_ph = 6.0f;
   ph_setpoints.ms_per_ml = 970;
-  ph_setpoints.ml_per_ph_per_10l = 0.8f;
+  ph_setpoints.ml_per_ph_per_10l = 1.2f;
 
   coolant_setpoints.max_temp = 16.49f;
   coolant_setpoints.min_temp = 16.41f;
@@ -360,7 +365,7 @@ void set_defaults(void){
   misc_settings.res_liters_alarm = 14.0f;
   misc_settings.nutrient_factor = 0.5f;
   misc_settings.flow_sensor_lag = 3000;
-  misc_settings.i2c_max_restarts = 3;
+  misc_settings.i2c_max_reading_age_s = 5;
   misc_settings.i2c_timeout = 10;
   misc_settings.i2c_break_enabled = 1;
   misc_settings.fill_to_alarm_level = 0;
@@ -959,10 +964,10 @@ void print_env(void) {
     TM_USART_Puts(USART2, buf);
   }
 
-  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f},\r\n", sensor_names[ADC_PH][0], sensor_names[ADC_PH][1], adc_ph.value);
+  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"},\r\n", sensor_names[ADC_PH][0], sensor_names[ADC_PH][1], adc_ph.value, unit_names[adc_ph.unit]);
   TM_USART_Puts(USART2, buf);
 
-  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f}\r\n", sensor_names[ADC_EC][0], sensor_names[ADC_EC][1], adc_ec.value);
+  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"}\r\n", sensor_names[ADC_EC][0], sensor_names[ADC_EC][1], adc_ec.value, unit_names[adc_ec.unit]);
   TM_USART_Puts(USART2, buf);
 
   TM_USART_Puts(USART2, "]}\r\n");
@@ -973,7 +978,7 @@ void print_light(void) {
   memset(buf, 0, sizeof(buf));
 
   light_timer.state = GPIO_ReadInputDataBit(relays[RELAY_LIGHT].gpio_port, relays[RELAY_LIGHT].gpio_pin);
-  sprintf(buf, "{\"name\":\"Main Light\",\"content\":{\r\n\t\"on_time\":\"%02d:%02d\",\r\n\t\"off_time\":\"%02d:%02d\",\r\n\t\"state\":\"%s\"\r\n}}\r\n",
+  sprintf(buf, "{\"name\":\"Main Light Settings\",\"content\":{\r\n\t\"on_time\":\"%02d:%02d\",\r\n\t\"off_time\":\"%02d:%02d\",\r\n\t\"state\":\"%s\"\r\n}}\r\n",
     light_timer.on_hour,
     light_timer.on_minutes,
     light_timer.off_hour,
@@ -989,7 +994,7 @@ void print_coolant(void) {
   memset(buf, 0, sizeof(buf));
 
   coolant_setpoints.state = gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state;
-  sprintf(buf, "{\"name\":\"Coolant Control\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
+  sprintf(buf, "{\"name\":\"Coolant Control Settings\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
     coolant_setpoints.max_temp,
     coolant_setpoints.min_temp,
     coolant_setpoints.state ? "On" : "Off"
@@ -1003,7 +1008,7 @@ void print_exhaust(void) {
   memset(buf, 0, sizeof(buf));
 
   exhaust_setpoints.state = GPIO_ReadInputDataBit(relays[RELAY_EXHAUST].gpio_port, relays[RELAY_EXHAUST].gpio_pin);
-  sprintf(buf, "{\"name\":\"Main Exhaust\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"max_humi\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"min_humi\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
+  sprintf(buf, "{\"name\":\"Main Exhaust Settings\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"max_humi\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"min_humi\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
     exhaust_setpoints.max_temp,
     exhaust_setpoints.max_humi,
     exhaust_setpoints.min_temp,
@@ -1045,13 +1050,15 @@ void print_errors(void){
   
   for (i=0; i<DS18B20_NUM_DEVICES; i++) {
     
-    sprintf((char *) buf, "\t{\"name\":\"DS18B20 %s\", \"count\":%d},\r\n", ds18b20_sensors[i].name, ds18b20_sensors[i].error_count);
+    sprintf((char *) buf, "\t{\"name\":\"DS18B20 %s\", \"ds_name\":\"%s_errors\", \"count\":%d},\r\n", ds18b20_sensors[i].name, sensor_names[i][1], ds18b20_sensors[i].error_count);
     TM_USART_Puts(USART2, buf);
   }
 
-  sprintf((char *) buf, "\t{\"name\":\"I2C Resets\", \"count\":\"%d\"},\r\n", global_state.i2c_restarts);
+  sprintf((char *) buf, "\t{\"name\":\"I2C Resets\", \"ds_name\":\"i2c_resets\", \"count\":%d},\r\n", global_state.i2c_restarts);
   TM_USART_Puts(USART2, buf);
-  sprintf((char *) buf, "\t{\"name\":\"Restarted by Watchdog\", \"value\":\"%s\"}\r\n", watchdog_barked ? "yes" : "no");
+  sprintf((char *) buf, "\t{\"name\":\"I2C Reading Age\", \"ds_name\":\"i2c_age\", \"seconds\":%d},\r\n", global_state.i2c_max_reading_age_s);
+  TM_USART_Puts(USART2, buf);
+  sprintf((char *) buf, "\t{\"name\":\"Restarted by Watchdog\", \"ds_name\":\"restarted_by_watchdog\", \"value\":\"%s\"}\r\n", watchdog_barked ? "yes" : "no");
   TM_USART_Puts(USART2, buf);
   TM_USART_Puts(USART2, "]}\r\n");
 
@@ -1143,17 +1150,19 @@ void print_irqs(void){
   memset(buf, 0, sizeof(buf));
   uint8_t i;
 
-  TM_USART_Puts(USART2, "{\"name\":\"IRQ Inputs\",\"content\":[\r\n");
+  TM_USART_Puts(USART2, "{\"name\":\"GPIO Input Channels\",\"content\":[\r\n");
   
   for (i=0; i<NUM_IRQ_PINS; i++) {
 
-    uint8_t pinstate = GPIO_ReadInputDataBit(irqs[i].gpio_port, irqs[i].gpio_pin);
-    sprintf(buf, "\t{\"name\":\"%s\", \"ds_name\":\"%s\", \"state\":%d}", irq_input_names[i][0], irq_input_names[i][1], pinstate);
-    TM_USART_Puts(USART2, buf);
-    if (i == NUM_IRQ_PINS -1)
-      TM_USART_Puts(USART2, "\r\n");
-    else
-      TM_USART_Puts(USART2, ",\r\n");
+    if (irq_input_names[i] != '\0') {
+      uint8_t pinstate = GPIO_ReadInputDataBit(irqs[i].gpio_port, irqs[i].gpio_pin);
+      sprintf(buf, "\t{\"name\":\"%s\", \"ds_name\":\"%s\", \"state\":%d}", irq_input_names[i][0], irq_input_names[i][1], pinstate);
+      TM_USART_Puts(USART2, buf);
+      if (i == NUM_IRQ_PINS -1)
+        TM_USART_Puts(USART2, "\r\n");
+      else
+        TM_USART_Puts(USART2, ",\r\n");
+    }
   }
   TM_USART_Puts(USART2, "]}\r\n");
 }
@@ -1234,20 +1243,20 @@ void print_state(void){
   uint8_t i;
 
   sprintf(buf, "{\"name\":\"Global State\",\"content\":[\r\n\t\
-{\"ds_name\": \"sewage_pump_blocked\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"sewage_tank_full\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"sewage_tank_empty\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"drain_cycle_active\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"adjusting_ph\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"stirring_nutrients\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"adding_nutrients\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"nutrients_done\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"reservoir_alarm\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"reservoir_max\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"reservoir_min\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"water_tank_empty\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"system_uptime\", \"state\":%d},\r\n\t\
-{\"ds_name\": \"reservoir_state\", \"state\":%d, \"state_name\":\"%s\"}]\r\n\
+{\"ds_name\": \"sewage_pump_blocked\", \"name\": \"Sewage Pump blocked\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"sewage_tank_full\", \"name\": \"Sewage Tank full\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"sewage_tank_empty\", \"name\": \"Sewage Tank empty\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"drain_cycle_active\", \"name\": \"Drain Cycle active\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"adjusting_ph\", \"name\": \"Adjusting pH\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"stirring_nutrients\", \"name\": \"Stirring Nutrients\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"adding_nutrients\", \"name\": \"Adding Nutrients\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"nutrients_done\", \"name\": \"Nutrients done\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"reservoir_alarm\", \"name\": \"Reservoir Alarm\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"reservoir_max\", \"name\": \"Reservoir max\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"reservoir_min\", \"name\": \"Reservoir min\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"water_tank_empty\", \"name\": \"Water Tank empty\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"system_uptime\", \"name\": \"System Uptime\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"reservoir_state\", \"name\": \"Reservoir State\", \"state\":%d, \"state_name\":\"%s\"}]\r\n\
 }\r\n",
     global_state.sewage_pump_blocked,
     global_state.sewage_tank_full,

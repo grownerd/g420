@@ -157,6 +157,7 @@ void host_cmd_get(char * item) {
     print_settings();
     print_ph();
     print_ec();
+    print_nutrients();
     print_state();
   }
   else if (strncmp(item, "ph", 2) == 0)
@@ -192,7 +193,7 @@ void host_cmd_set(char * item, char * val) {
   else if (strncmp(item, "light", 5) == 0)
   {
     set_light_time(val);
-    host_cmd_get("light");
+    print_light();
   }
   else if (strncmp(item, "relay", 5) == 0)
   {
@@ -321,23 +322,32 @@ void set_misc(char * val) {
   }
   part[part_counter][j] = '\0';
 
-  if (strncmp(part[0], "res_settling_s", 14) == 0) {
+  if (strncmp(part[0], "res_settling_time_s", 19) == 0) {
     misc_settings.res_settling_time_s = atoi(part[1]);
 
-  } else if (strncmp(part[0], "fill_to_alarm", 13) == 0) {
+  } else if (strncmp(part[0], "fill_to_alarm_level", 19) == 0) {
     misc_settings.fill_to_alarm_level = atoi(part[1]);
 
-  } else if (strncmp(part[0], "sewage_pause", 12) == 0) {
+  } else if (strncmp(part[0], "sewage_pump_pause_s", 19) == 0) {
     misc_settings.sewage_pump_pause_s = atof(part[1]);
+
+  } else if (strncmp(part[0], "ec_read_interval_s", 18) == 0) {
+    misc_settings.ec_read_interval_s = atoi(part[1]);
+
+  } else if (strncmp(part[0], "sewage_pump_run_s", 17) == 0) {
+    misc_settings.sewage_pump_run_s = atof(part[1]);
+
+  } else if (strncmp(part[0], "nutrient_factor", 15) == 0) {
+    misc_settings.nutrient_factor = atof(part[1]);
 
   } else if (strncmp(part[0], "ec_temp_coef", 12) == 0) {
     misc_settings.ec_temp_coef = atof(part[1]);
 
-  } else if (strncmp(part[0], "sewage_run", 10) == 0) {
-    misc_settings.sewage_pump_run_s = atof(part[1]);
+  } else if (strncmp(part[0], "ec_ra_ohms", 9) == 0) {
+    misc_settings.ec_ra_ohms = atoi(part[1]);
 
-  } else if (strncmp(part[0], "ec_read_s", 9) == 0) {
-    misc_settings.fill_to_alarm_level = atoi(part[1]);
+  } else if (strncmp(part[0], "ec_r1_ohms", 9) == 0) {
+    misc_settings.ec_r1_ohms = atoi(part[1]);
 
   } else if (strncmp(part[0], "ph7_ph", 6) == 0) {
     misc_settings.ph7_ph = atof(part[1]);
@@ -350,12 +360,6 @@ void set_misc(char * val) {
 
   } else if (strncmp(part[0], "ph4_v", 5) == 0) {
     misc_settings.ph4_v = atof(part[1]);
-
-  } else if (strncmp(part[0], "ec_ra", 5) == 0) {
-    misc_settings.ec_ra_ohms = atoi(part[1]);
-
-  } else if (strncmp(part[0], "ec_r1", 5) == 0) {
-    misc_settings.ec_r1_ohms = atoi(part[1]);
 
   } else if (strncmp(part[0], "vcc_v", 5) == 0) {
     misc_settings.vcc_v = atof(part[1]);

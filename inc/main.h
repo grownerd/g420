@@ -9,7 +9,7 @@
 #define NUM_RES_STATES 14
 #define NUM_UNITS 8
 #define MAX_UNIT_NAME_LENGTH 9
-#define MAX_STR_LEN 1024
+#define MAX_STR_LEN 2048
 #define V_IN 3.3F
 #define FLASH_SIZE 2048
 
@@ -91,7 +91,7 @@ typedef enum units {
   PERCENT,
   LITER,
   PH,
-  S_CM,
+  MS_CM,
   VOLT,
   AMP
 } unit_t;
@@ -194,6 +194,7 @@ typedef struct misc_settings {
 
   uint32_t i2c_timeout;
   uint32_t i2c_max_restarts;
+  uint32_t i2c_max_reading_age_s;
   uint32_t flow_sensor_lag;
 }misc_settings_struct_t;
 
@@ -221,6 +222,8 @@ typedef struct global_state {
   uint32_t system_uptime;
   uint32_t i2c_errors;
   uint32_t i2c_restarts;
+  uint32_t i2c_last_good_reading;
+  uint32_t i2c_max_reading_age_s;
   res_states_t reservoir_state;
   char* datestring;
 }global_state_struct_t;
