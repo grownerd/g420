@@ -225,7 +225,7 @@ void save_data_to_flash() {
     FLASH_Lock();
     return;
   }
-  sprintf(buf, "{\"event\": \"Saved Data to Flash\", \"time\": \"%s\"}\r\n", global_state.datestring);
+  snprintf(buf, MAX_STR_LEN, "{\"event\": \"Saved Data to Flash\", \"time\": \"%s\"}\r\n", global_state.datestring);
   TM_USART_Puts(USART2, buf);
 }
 
@@ -236,7 +236,7 @@ void read_flash(void){
   uint8_t* address = &flash_data[0];
  
   if (flash_data[0] == 0xff){
-    sprintf(buf, "{\"error\": \"Flash empty - Setting Defaults\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"error\": \"Flash empty - Setting Defaults\", \"time\": \"%s\"}\r\n", global_state.datestring);
     set_defaults();
   }else{
     memcpy(&light_timer, address, sizeof(light_timer));
@@ -256,7 +256,7 @@ void read_flash(void){
 
     memcpy(&misc_settings, address, sizeof(misc_settings));
     address += sizeof(misc_settings);
-    sprintf(buf, "{\"event\": \"Restored Data from Flash\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Restored Data from Flash\", \"time\": \"%s\"}\r\n", global_state.datestring);
   }
   TM_USART_Puts(USART2, buf);
 }

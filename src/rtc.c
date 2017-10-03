@@ -61,7 +61,7 @@ void update_datestring(void) {
     TM_RTC_GetDateTime(&Time, TM_RTC_Format_BIN);
     
     /* Format time */
-    sprintf(global_state.datestring, "%02d.%02d.%04d %02d:%02d:%02d",
+    snprintf(global_state.datestring, 20, "%02d.%02d.%04d %02d:%02d:%02d",
                 Time.date,
                 Time.month,
                 Time.year + 2000,
@@ -78,7 +78,7 @@ void print_time(void) {
     TM_RTC_GetDateTime(&Time, TM_RTC_Format_BIN);
     
     /* Format time */
-    sprintf(buf, "{\"name\":\"datetime\",\"content\":[{\"date\":\"%02d.%02d.%04d\"}, {\"time\":\"%02d:%02d:%02d.%06d\"}, {\"unix\":%u}]}\r\n",
+    snprintf(buf, MAX_STR_LEN, "{\"name\":\"datetime\",\"content\":[{\"date\":\"%02d.%02d.%04d\"}, {\"time\":\"%02d:%02d:%02d.%06d\"}, {\"unix\":%u}]}\r\n",
                 Time.date,
                 Time.month,
                 Time.year + 2000,

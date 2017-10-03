@@ -58,13 +58,13 @@ void onewire_init(void) {
   if (count > 0) {
     TM_DS18B20_StartAll(&OneWire1);
     while (!TM_DS18B20_AllDone(&OneWire1));
-    sprintf(buf, "{\"event\": \"Devices found on 1-wire\", \"number\": %d, \"content\":[\r\n", count);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Devices found on 1-wire\", \"number\": %d, \"content\":[\r\n", count);
     TM_USART_Puts(USART2, buf);
     /* Display 64bit rom code for each device */
     for (j = 0; j < count; j++) {
       TM_USART_Puts(USART2, "\t{\"address\": \"");
       for (i = 0; i < 8; i++) {
-        sprintf(buf, "0x%02X ", device[j][i]);
+        snprintf(buf, MAX_STR_LEN, "0x%02X ", device[j][i]);
         TM_USART_Puts(USART2, buf);
       }
       TM_USART_Puts(USART2, "\"}");
@@ -129,7 +129,7 @@ void ds18b20_read_temp() {
     }
     
     if (alarm_count > 0) {
-      sprintf(buf, "Devices with alarm: %d\r\n", alarm_count);
+      snprintf(buf, MAX_STR_LEN, "Devices with alarm: %d\r\n", alarm_count);
       TM_USART_Puts(USART2, buf);
     }
     
@@ -139,7 +139,7 @@ void ds18b20_read_temp() {
         for (j = 0; j < alarm_count; j++) {
             TM_USART_Puts(USART2, "Device with alarm: ");
             for (i = 0; i < 8; i++) {
-                sprintf(buf, "0x%02X ", alarm_device[j][i]);
+                snprintf(buf, MAX_STR_LEN, "0x%02X ", alarm_device[j][i]);
                 TM_USART_Puts(USART2, buf);
             }
             TM_USART_Puts(USART2, "\r\n    ");

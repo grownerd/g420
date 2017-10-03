@@ -274,7 +274,7 @@ void dosing_pump_timer_init(uint32_t run_for_ms){
   TIM_TimeBaseStructure.TIM_Prescaler = prescaler;
   TIM_TimeBaseInit (TIM3, &TIM_TimeBaseStructure);
 
-  sprintf("{\"event\": \"Initialized Timer\", \"reload\": %d, \"prescaler\": %d, \"frequency\": %d}\r\n", buf, reload, prescaler, TIM3CLK_Frequency);
+  snprintf(buf, MAX_STR_LEN, "{\"event\": \"Initialized Timer\", \"reload\": %d, \"prescaler\": %d, \"frequency\": %d}\r\n", reload, prescaler, TIM3CLK_Frequency);
   TM_USART_Puts(USART2, buf);
 }
 

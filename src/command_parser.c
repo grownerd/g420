@@ -418,7 +418,7 @@ void set_minmax(char * val, uint8_t minmax) {
   part[part_counter][j] = '\0';
 
   float setpoint = atof(part[1]);
-  sprintf(buf, "{\"event\": \"Setting %s %s to %2.2f\", \"time\": \"%s\"}\r\n", minmax ? "max" : "min", part[0], setpoint, global_state.datestring);
+  snprintf(buf, MAX_STR_LEN, "{\"event\": \"Setting %s %s to %2.2f\", \"time\": \"%s\"}\r\n", minmax ? "max" : "min", part[0], setpoint, global_state.datestring);
 
   //snprintf(buf, MAX_STR_LEN, "Setting \"%s\" to %s\r\n",part[0], setpoint);
   TM_USART_Puts(USART2, buf);
@@ -472,7 +472,7 @@ void set_gpio_output(char * val) {
   uint32_t runfor = 0;
   if (gpio_val) runfor = 0xffffffff;
 
-    sprintf(buf, "{\"event\": \"Setting GPIO Output %s to %d%%\", \"time\": \"%s\"}\r\n", part[0], gpio_val, global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Setting GPIO Output %s to %d%%\", \"time\": \"%s\"}\r\n", part[0], gpio_val, global_state.datestring);
 
   //snprintf(buf, MAX_STR_LEN, "Setting PWM Channel \"%s\" to %d%%\r\n",part[0], gpio_val);
   TM_USART_Puts(USART2, buf);
@@ -538,7 +538,7 @@ void set_relay(char * val) {
   if (desired_state > 0)
     desired_state = 1;
 
-    sprintf(buf, "{\"event\": \"Setting Relay %s to %d\", \"time\": \"%s\"}\r\n", part[0], desired_state ? "on" : "off", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Setting Relay %s to %d\", \"time\": \"%s\"}\r\n", part[0], desired_state ? "on" : "off", global_state.datestring);
 
     //snprintf(buf, MAX_STR_LEN, "Setting Relay \"%s\" to %d\r\n",part[0], desired_state);
     TM_USART_Puts(USART2, buf);

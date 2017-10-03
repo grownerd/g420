@@ -168,7 +168,7 @@ int main(void) {
   update_datestring();
   
   TM_USART_Init(USART2, TM_USART_PinsPack_1, 115200);
-  sprintf(buf, "{\"event\": \"System Startup\", \"sysclk_frequency\": %d, \"pclk1_frequency\": %d, \"time\": \"%s\"}\r\n", RCC_Clocks.SYSCLK_Frequency, RCC_Clocks.PCLK1_Frequency, global_state.datestring);
+  snprintf(buf, MAX_STR_LEN, "{\"event\": \"System Startup\", \"sysclk_frequency\": %d, \"pclk1_frequency\": %d, \"time\": \"%s\"}\r\n", RCC_Clocks.SYSCLK_Frequency, RCC_Clocks.PCLK1_Frequency, global_state.datestring);
   TM_USART_Puts(USART2, buf);
 
 
@@ -205,11 +205,11 @@ int main(void) {
   bme280_init_result = init_bme280(&bme280_1); // this is not the driver internal init function!
 
   if (bme280_init_result == 0) {
-    sprintf(buf, "{\"event\": \"BME280 Initialized\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"BME280 Initialized\", \"time\": \"%s\"}\r\n", global_state.datestring);
     TM_USART_Puts(USART2, buf);
     TM_WATCHDOG_Reset();
   } else {
-    sprintf(buf, "{\"error\": \"BME280 Initialization Error!\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"error\": \"BME280 Initialization Error!\", \"time\": \"%s\"}\r\n", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }
     
@@ -275,7 +275,7 @@ int main(void) {
         deinit_I2C1();
         TM_WATCHDOG_Reset();
 
-        //sprintf(buf, "{\"event\": \"I2C Bus Reset\", \"time\": \"%s\"}\r\n", global_state.datestring);
+        //snprintf(buf, MAX_STR_LEN, "{\"event\": \"I2C Bus Reset\", \"time\": \"%s\"}\r\n", global_state.datestring);
         //TM_USART_Puts(USART2, buf);
 
         i2c_bus_reset();
@@ -284,7 +284,7 @@ int main(void) {
         TM_WATCHDOG_Reset();
 
         if (bme280_init_result != 0) {
-          sprintf(buf, "{\"event\": \"BME280 Initialization Error!\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          snprintf(buf, MAX_STR_LEN, "{\"event\": \"BME280 Initialization Error!\", \"time\": \"%s\"}\r\n", global_state.datestring);
           TM_USART_Puts(USART2, buf);
 
           uint32_t reading_age = (TM_Time - global_state.i2c_last_good_reading);
@@ -297,13 +297,13 @@ int main(void) {
             && (!global_state.adding_nutrients)
             && (!global_state.drain_cycle_active)
             && (global_state.reservoir_state == NORMAL_IDLE)){
-            sprintf(buf, "{\"event\": \"Last good I2C Reading is too old - Forcing Reboot\", \"time\": \"%s\"}\r\n", global_state.datestring);
+            snprintf(buf, MAX_STR_LEN, "{\"event\": \"Last good I2C Reading is too old - Forcing Reboot\", \"time\": \"%s\"}\r\n", global_state.datestring);
             TM_USART_Puts(USART2, buf);
             while (1);
           }
         } else {
           fdc1004_init();
-          //sprintf(buf, "{\"event\": \"BME280 Initialized\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          //snprintf(buf, MAX_STR_LEN, "{\"event\": \"BME280 Initialized\", \"time\": \"%s\"}\r\n", global_state.datestring);
           //TM_USART_Puts(USART2, buf);
         }
       }
@@ -392,12 +392,12 @@ void emergency_stop(uint8_t release){
   memset(buf, 0, sizeof(buf));
 
   if (release){
-    sprintf(buf, "{\"event\": \"Emergency Stop Release\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Emergency Stop Release\", \"time\": \"%s\"}\r\n", global_state.datestring);
     runfor = 0;
     global_state.sewage_pump_blocked = 0;
     global_state.reservoir_state = NORMAL_IDLE;
   } else {
-    sprintf(buf, "{\"event\": \"Emergency STOP!\", \"time\": \"%s\"}\r\n", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Emergency STOP!\", \"time\": \"%s\"}\r\n", global_state.datestring);
     global_state.drain_cycle_active = 0;
     global_state.adjusting_ph = 0;
     global_state.stirring_nutrients = 0;
@@ -425,7 +425,7 @@ void gpio_check(void){
   for (i=0; i<NUM_IRQ_PINS; i++){
     uint8_t state = (!GPIO_ReadInputDataBit(irqs[i].gpio_port, irqs[i].gpio_pin));
     if (state != last_states[i]){
-      sprintf(buf, "{\"event\": \"Input changed\", \"name\": \"%s\", \"ds_name\": \"%s\", \"state\": \"%s\", \"time\": \"%s\"}\r\n", irq_input_names[i][0], irq_input_names[i][1], state, global_state.datestring);
+      snprintf(buf, MAX_STR_LEN, "{\"event\": \"Input changed\", \"name\": \"%s\", \"ds_name\": \"%s\", \"state\": \"%s\", \"time\": \"%s\"}\r\n", irq_input_names[i][0], irq_input_names[i][1], state, global_state.datestring);
     }
   }
 }
@@ -454,16 +454,16 @@ void reservoir_level_ctrl(void){
     case NORMAL_IDLE:
       if (global_state.drain_cycle_active){
         if (!global_state.sewage_tank_empty){
-          sprintf(buf, "{\"error\": \"Sewage Tank not empty\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          snprintf(buf, MAX_STR_LEN, "{\"error\": \"Sewage Tank not empty\", \"time\": \"%s\"}\r\n", global_state.datestring);
           global_state.drain_cycle_active = 0;
         } else if (global_state.water_tank_empty){
-          sprintf(buf, "{\"error\": \"Water Tank empty\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          snprintf(buf, MAX_STR_LEN, "{\"error\": \"Water Tank empty\", \"time\": \"%s\"}\r\n", global_state.datestring);
           global_state.drain_cycle_active = 0;
         } else {
           gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 5000;
           gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
           global_state.reservoir_state = DRAIN_CYCLE_DRAINING;
-          sprintf(buf, "{\"event\": \"Reservoir Draining started\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Draining started\", \"time\": \"%s\"}\r\n", global_state.datestring);
           break;
         }
       } 
@@ -494,7 +494,7 @@ void reservoir_level_ctrl(void){
           if (!global_state.nutrients_done)
             global_state.adding_nutrients = 1;
           global_state.reservoir_state = NORMAL_FILLING;
-          sprintf(buf, "{\"event\": \"Reservoir topping up started\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir topping up started\", \"time\": \"%s\"}\r\n", global_state.datestring);
         } else {
           global_state.reservoir_state = NORMAL_IDLE;
         }
@@ -536,7 +536,7 @@ void reservoir_level_ctrl(void){
       } else {
         global_state.reservoir_state = NORMAL_NUTRIENTS;
       }
-      sprintf(buf, "{\"event\": \"Reservoir topping up completed\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir topping up completed\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
       break;
 
@@ -548,7 +548,7 @@ void reservoir_level_ctrl(void){
       } else {
         global_state.reservoir_state = DRAIN_CYCLE_NUTRIENTS;
       }
-      sprintf(buf, "{\"event\": \"Reservoir Filling complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Filling complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
       break;
 
@@ -565,14 +565,14 @@ void reservoir_level_ctrl(void){
       } else {
         global_state.reservoir_state = DRAIN_CYCLE_EMPTY;
         gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 0;
-        sprintf(buf, "{\"event\": \"Reservoir Draining complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
+        snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Draining complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
       }
       drain_time = TM_Time;
       break;
 
     case DRAIN_CYCLE_EMPTY:
       global_state.reservoir_state = DRAIN_CYCLE_FILLING;
-      sprintf(buf, "{\"event\": \"Reservoir Filling started\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Filling started\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
       global_state.stirring_nutrients = 1;
       break;
@@ -589,7 +589,7 @@ void reservoir_level_ctrl(void){
       global_state.drain_cycle_active = 0;
       global_state.reservoir_state = EMERGENCY_STOP;
       emergency_stop(0);
-      sprintf(buf, "{\"error\": \"Impossible Level Switch Reading\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      snprintf(buf, MAX_STR_LEN, "{\"error\": \"Impossible Level Switch Reading\", \"time\": \"%s\"}\r\n", global_state.datestring);
       break;
 
     case EMERGENCY_STOP:
@@ -610,7 +610,7 @@ void nutrient_pump_ctrl(void){
     if (gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state == 0){
       gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state = 1;
       gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].run_for_ms = 0xffffffff;
-      sprintf(buf, "{\"event\": \"%s turned on\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_STIRRER_MOTORS][0], global_state.datestring);
+      snprintf(buf, MAX_STR_LEN, "{\"event\": \"%s turned on\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_STIRRER_MOTORS][0], global_state.datestring);
       TM_USART_Puts(USART2, buf);
     }
 
@@ -618,7 +618,7 @@ void nutrient_pump_ctrl(void){
     if (gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state == 1){
       gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state = 0;
       gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].run_for_ms = 0;
-      sprintf(buf, "{\"event\": \"%s turned off\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_STIRRER_MOTORS][0], global_state.datestring);
+      snprintf(buf, MAX_STR_LEN, "{\"event\": \"%s turned off\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_STIRRER_MOTORS][0], global_state.datestring);
       TM_USART_Puts(USART2, buf);
     }
 
@@ -648,9 +648,9 @@ void nutrient_pump_ctrl(void){
 
         gpio_outputs[gpio_out].run_for_ms = dosage_ml * nutrient_pumps[i].ms_per_ml;
 
-        sprintf(buf, "{\"info\": \"%s\", \"amount_ml\": %1.2f, \"liters_in_res\": %1.2f, \"ts\": %d, \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][1], dosage_ml, liters_added, TM_Time, global_state.datestring);
+        snprintf(buf, MAX_STR_LEN, "{\"info\": \"%s\", \"amount_ml\": %1.2f, \"liters_in_res\": %1.2f, \"ts\": %d, \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][1], dosage_ml, liters_added, TM_Time, global_state.datestring);
         TM_USART_Puts(USART2, buf);
-        sprintf(buf, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][0], gpio_outputs[gpio_out].run_for_ms, global_state.datestring);
+        snprintf(buf, MAX_STR_LEN, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][0], gpio_outputs[gpio_out].run_for_ms, global_state.datestring);
         TM_USART_Puts(USART2, buf);
 
         next_time = TM_Time + (dosage_ml * nutrient_pumps[i].ms_per_ml) + misc_settings.nutrient_pause_ms;
@@ -683,7 +683,7 @@ void sewage_pump_ctrl(void){
 
     if ((TM_Time >= (last_time + (misc_settings.sewage_pump_pause_s * 1000) + (misc_settings.sewage_pump_run_s * 1000))) || ((TM_Time > last_time) && (global_state.sewage_tank_full))) {
       gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].run_for_ms = misc_settings.sewage_pump_run_s * 1000;
-      sprintf(buf, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_SEWAGE_PUMP][0], gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].run_for_ms, global_state.datestring);
+      snprintf(buf, MAX_STR_LEN, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[GPIO_OUTPUT_SEWAGE_PUMP][0], gpio_outputs[GPIO_OUTPUT_SEWAGE_PUMP].run_for_ms, global_state.datestring);
       TM_USART_Puts(USART2, buf);
       last_time = TM_Time;
     }
@@ -722,7 +722,7 @@ void ph_ctrl(void){
         global_state.adjusting_ph = 1;
         gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = ms_to_run;
 
-        sprintf(buf, "{\"info\": \"ph_down\", \"amount_ml\": %1.2f, \"liters_in_res\": %1.2f, \"ph_delta\": %1.2f, \"ts\": %d, \"run_for_ms\": %d, \"time\": \"%s\"}\r\n", ml_to_add, liters_in_res, ph_delta, TM_Time, gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms, global_state.datestring);
+        snprintf(buf, MAX_STR_LEN, "{\"info\": \"ph_down\", \"amount_ml\": %1.2f, \"liters_in_res\": %1.2f, \"ph_delta\": %1.2f, \"ts\": %d, \"run_for_ms\": %d, \"time\": \"%s\"}\r\n", ml_to_add, liters_in_res, ph_delta, TM_Time, gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms, global_state.datestring);
         TM_USART_Puts(USART2, buf);
       } else {
         gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = 0;
@@ -751,7 +751,7 @@ void gpio_ctrl(void){
   uint32_t t_delay = TM_Time - last_time;
 
   if (global_state.active_dosing_pump_gpio != 0xff){
-    sprintf(buf, "{\"event\": \"Stopped dosing pump by Interrupt\", \"name\": \"%s\"}\r\n", gpio_output_names[global_state.active_dosing_pump_gpio][0]);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Stopped dosing pump by Interrupt\", \"name\": \"%s\"}\r\n", gpio_output_names[global_state.active_dosing_pump_gpio][0]);
     TM_USART_Puts(USART2, buf);
     global_state.active_dosing_pump_gpio = 0xff;
   }
@@ -769,14 +769,14 @@ void gpio_ctrl(void){
             if (gpio_outputs[i].run_for_ms > run_for_ms){
               desired_state = 0;
               gpio_outputs[i].run_for_ms = 0;
-              sprintf(buf, "{\"event\": \"Stopped timed gpio output by gpio_ctrl() with delay\", \"name\": \"%s\", \"delay\": %d}\r\n", gpio_output_names[i][0], t_delay);
+              snprintf(buf, MAX_STR_LEN, "{\"event\": \"Stopped timed gpio output by gpio_ctrl() with delay\", \"name\": \"%s\", \"delay\": %d}\r\n", gpio_output_names[i][0], t_delay);
               TM_USART_Puts(USART2, buf);
             }
           }
         } else {
           if (gpio_outputs[i].desired_state == 1){
             desired_state = 0;
-            sprintf(buf, "{\"event\": \"Stopped dosing pump by gpio_ctrl() on time\", \"name\": \"%s\"}\r\n", gpio_output_names[i][0]);
+            snprintf(buf, MAX_STR_LEN, "{\"event\": \"Stopped dosing pump by gpio_ctrl() on time\", \"name\": \"%s\"}\r\n", gpio_output_names[i][0]);
             TM_USART_Puts(USART2, buf);
           }
         }
@@ -875,7 +875,7 @@ void exhaust_ctrl(void){
 
   if (desired_state != current_state) {
     GPIO_WriteBit(relays[RELAY_EXHAUST].gpio_port, relays[RELAY_EXHAUST].gpio_pin, desired_state);
-    sprintf(buf, "{\"event\": \"Exhaust turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Exhaust turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }
 }
@@ -896,7 +896,7 @@ void res_temp_ctrl(void){
   if (desired_state != current_state) {
     gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state = desired_state;
     gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].run_for_ms = 0xffffffff;
-    sprintf(buf, "{\"event\": \"Coolant pump turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Coolant pump turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }
 }
@@ -927,7 +927,7 @@ void light_scheduler(void) {
 
   if (light_timer.state != desired_state) {
     GPIO_WriteBit(relays[RELAY_LIGHT].gpio_port, relays[RELAY_LIGHT].gpio_pin, desired_state);
-    sprintf(buf, "{\"event\": \"Main Light turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
+    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Main Light turned %s\", \"time\": \"%s\"}\r\n", desired_state ? "on" : "off", global_state.datestring);
     TM_USART_Puts(USART2, buf);
   }
 }
@@ -937,7 +937,7 @@ void print_env(void) {
   memset(buf, 0, sizeof(buf));
 
   TM_USART_Puts(USART2, "{\"name\":\"Sensors\",\"content\":[\r\n");
-  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n\t{\"name\":\"%s\",\"ds_name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"}, \r\n\t{\"name\":\"%s\",\"ds_name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n",
+  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\",\"ds_name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n\t{\"name\":\"%s\",\"ds_name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"}, \r\n\t{\"name\":\"%s\",\"ds_name\":\"%s\", \"value\":%.2f, \"unit\":\"%s\"},\r\n",
     bme280_temp.name,
     sensor_names[TEMP_MAIN][1],
     bme280_temp.value,
@@ -955,7 +955,7 @@ void print_env(void) {
 
   uint8_t i;
   for (i=0; i< DS18B20_NUM_DEVICES; i++) {
-    sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\":\"%s\",\"value\":%.2f, \"unit\":\"%s\"},\r\n",
+    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\",\"ds_name\":\"%s\",\"value\":%.2f, \"unit\":\"%s\"},\r\n",
       ds18b20_sensors[i].name,
       sensor_names[i][1],
       ds18b20_sensors[i].value,
@@ -964,10 +964,10 @@ void print_env(void) {
     TM_USART_Puts(USART2, buf);
   }
 
-  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"},\r\n", sensor_names[ADC_PH][0], sensor_names[ADC_PH][1], adc_ph.value, unit_names[adc_ph.unit]);
+  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"},\r\n", sensor_names[ADC_PH][0], sensor_names[ADC_PH][1], adc_ph.value, unit_names[adc_ph.unit]);
   TM_USART_Puts(USART2, buf);
 
-  sprintf(buf, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"}\r\n", sensor_names[ADC_EC][0], sensor_names[ADC_EC][1], adc_ec.value, unit_names[adc_ec.unit]);
+  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"}\r\n", sensor_names[ADC_EC][0], sensor_names[ADC_EC][1], adc_ec.value, unit_names[adc_ec.unit]);
   TM_USART_Puts(USART2, buf);
 
   TM_USART_Puts(USART2, "]}\r\n");
@@ -978,7 +978,7 @@ void print_light(void) {
   memset(buf, 0, sizeof(buf));
 
   light_timer.state = GPIO_ReadInputDataBit(relays[RELAY_LIGHT].gpio_port, relays[RELAY_LIGHT].gpio_pin);
-  sprintf(buf, "{\"name\":\"Main Light Settings\",\"content\":{\r\n\t\"on_time\":\"%02d:%02d\",\r\n\t\"off_time\":\"%02d:%02d\",\r\n\t\"state\":\"%s\"\r\n}}\r\n",
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Main Light Settings\",\"content\":{\r\n\t\"on_time\":\"%02d:%02d\",\r\n\t\"off_time\":\"%02d:%02d\",\r\n\t\"state\":\"%s\"\r\n}}\r\n",
     light_timer.on_hour,
     light_timer.on_minutes,
     light_timer.off_hour,
@@ -994,7 +994,7 @@ void print_coolant(void) {
   memset(buf, 0, sizeof(buf));
 
   coolant_setpoints.state = gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state;
-  sprintf(buf, "{\"name\":\"Coolant Control Settings\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Coolant Control Settings\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
     coolant_setpoints.max_temp,
     coolant_setpoints.min_temp,
     coolant_setpoints.state ? "On" : "Off"
@@ -1008,7 +1008,7 @@ void print_exhaust(void) {
   memset(buf, 0, sizeof(buf));
 
   exhaust_setpoints.state = GPIO_ReadInputDataBit(relays[RELAY_EXHAUST].gpio_port, relays[RELAY_EXHAUST].gpio_pin);
-  sprintf(buf, "{\"name\":\"Main Exhaust Settings\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"max_humi\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"min_humi\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Main Exhaust Settings\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"max_humi\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"min_humi\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
     exhaust_setpoints.max_temp,
     exhaust_setpoints.max_humi,
     exhaust_setpoints.min_temp,
@@ -1028,7 +1028,7 @@ void print_relays(void) {
   for (i=0; i < NUM_RELAYS; i++) {
     uint8_t state = GPIO_ReadInputDataBit(relays[i].gpio_port, relays[i].gpio_pin);
 
-    sprintf((char *) buf, "\t{\"relay_id\":%d, \"state\":%d}",
+    snprintf(buf, MAX_STR_LEN, "\t{\"relay_id\":%d, \"state\":%d}",
       i, state
     );
     TM_USART_Puts(USART2, buf);
@@ -1050,15 +1050,15 @@ void print_errors(void){
   
   for (i=0; i<DS18B20_NUM_DEVICES; i++) {
     
-    sprintf((char *) buf, "\t{\"name\":\"DS18B20 %s\", \"ds_name\":\"%s_errors\", \"count\":%d},\r\n", ds18b20_sensors[i].name, sensor_names[i][1], ds18b20_sensors[i].error_count);
+    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"DS18B20 %s\", \"ds_name\":\"%s_errors\", \"count\":%d},\r\n", ds18b20_sensors[i].name, sensor_names[i][1], ds18b20_sensors[i].error_count);
     TM_USART_Puts(USART2, buf);
   }
 
-  sprintf((char *) buf, "\t{\"name\":\"I2C Resets\", \"ds_name\":\"i2c_resets\", \"count\":%d},\r\n", global_state.i2c_restarts);
+  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"I2C Resets\", \"ds_name\":\"i2c_resets\", \"count\":%d},\r\n", global_state.i2c_restarts);
   TM_USART_Puts(USART2, buf);
-  sprintf((char *) buf, "\t{\"name\":\"I2C Reading Age\", \"ds_name\":\"i2c_age\", \"seconds\":%d},\r\n", global_state.i2c_max_reading_age_s);
+  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"I2C Reading Age\", \"ds_name\":\"i2c_age\", \"seconds\":%d},\r\n", global_state.i2c_max_reading_age_s);
   TM_USART_Puts(USART2, buf);
-  sprintf((char *) buf, "\t{\"name\":\"Restarted by Watchdog\", \"ds_name\":\"restarted_by_watchdog\", \"value\":\"%s\"}\r\n", watchdog_barked ? "yes" : "no");
+  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"Restarted by Watchdog\", \"ds_name\":\"restarted_by_watchdog\", \"value\":\"%s\"}\r\n", watchdog_barked ? "yes" : "no");
   TM_USART_Puts(USART2, buf);
   TM_USART_Puts(USART2, "]}\r\n");
 
@@ -1081,7 +1081,7 @@ void print_gpio_outputs(void){
   for (i=0; i<NUM_GPIO_OUTPUTS; i++) {
 
     uint8_t pinstate = GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin);
-    sprintf(buf, "\t{\"name\":\"%s\", \"ds_name\":\"%s\", \"state\":%d, \"run for ms\":%d}", gpio_output_names[i][0], gpio_output_names[i][1], pinstate, gpio_outputs[i].run_for_ms);
+    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"ds_name\":\"%s\", \"state\":%d, \"run for ms\":%d}", gpio_output_names[i][0], gpio_output_names[i][1], pinstate, gpio_outputs[i].run_for_ms);
     TM_USART_Puts(USART2, buf);
     if (i == NUM_GPIO_OUTPUTS -1)
       TM_USART_Puts(USART2, "\r\n");
@@ -1103,7 +1103,7 @@ void print_nutrients(void){
   for (i=0; i<NUM_NUTRIENT_PUMPS; i++) {
 
     
-    sprintf(buf, "\t{\"name\":\"%s\", \"ms_per_ml\":%d,\"ml_per_10l\":%1.2f}", nutrient_pumps[i].name, nutrient_pumps[i].ms_per_ml, nutrient_pumps[i].ml_per_10l);
+    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"ms_per_ml\":%d,\"ml_per_10l\":%1.2f}", nutrient_pumps[i].name, nutrient_pumps[i].ms_per_ml, nutrient_pumps[i].ml_per_10l);
     TM_USART_Puts(USART2, buf);
     if (i == NUM_GPIO_OUTPUTS -1)
       TM_USART_Puts(USART2, "\r\n");
@@ -1124,7 +1124,7 @@ void print_capsense(void){
   
   for (i=0; i<2; i++) {
 
-    sprintf(buf, "\t{\"id\":%d, \"capacitance\":%d}", i, capsense_data[i]);
+    snprintf(buf, MAX_STR_LEN, "\t{\"id\":%d, \"capacitance\":%d}", i, capsense_data[i]);
     TM_USART_Puts(USART2, buf);
     if (i == 1)
       TM_USART_Puts(USART2, "\r\n");
@@ -1139,7 +1139,7 @@ void print_capsense(void){
 void print_pwmin(uint8_t id, float freq){
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
-  sprintf(buf, "{\"name\": \"PWM Input\", \"id\":%d, \"frequency\":%7.2f}\r\n", id, freq);
+  snprintf(buf, MAX_STR_LEN, "{\"name\": \"PWM Input\", \"id\":%d, \"frequency\":%7.2f}\r\n", id, freq);
   TM_USART_Puts(USART2, buf);
 
 }
@@ -1156,7 +1156,7 @@ void print_irqs(void){
 
     if (irq_input_names[i] != '\0') {
       uint8_t pinstate = GPIO_ReadInputDataBit(irqs[i].gpio_port, irqs[i].gpio_pin);
-      sprintf(buf, "\t{\"name\":\"%s\", \"ds_name\":\"%s\", \"state\":%d}", irq_input_names[i][0], irq_input_names[i][1], pinstate);
+      snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"ds_name\":\"%s\", \"state\":%d}", irq_input_names[i][0], irq_input_names[i][1], pinstate);
       TM_USART_Puts(USART2, buf);
       if (i == NUM_IRQ_PINS -1)
         TM_USART_Puts(USART2, "\r\n");
@@ -1171,9 +1171,9 @@ void print_irqs(void){
 void print_ph(void){
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
-  sprintf(buf, "{\"name\": \"%s\", \"value\":%1.2f}\r\n", sensor_names[ADC_PH][0], adc_ph.value);
+  snprintf(buf, MAX_STR_LEN, "{\"name\": \"%s\", \"value\":%1.2f}\r\n", sensor_names[ADC_PH][0], adc_ph.value);
   TM_USART_Puts(USART2, buf);
-  sprintf(buf, "{\"name\": \"pH Adjustment Settings\", \"min_ph\":%1.2f, \"max_ph\":%1.2f, \"ms_per_ml\":%d, \"ml_per_ph_per_10l\":%1.2f}\r\n", ph_setpoints.min_ph, ph_setpoints.max_ph, ph_setpoints.ms_per_ml, ph_setpoints.ml_per_ph_per_10l);
+  snprintf(buf, MAX_STR_LEN, "{\"name\": \"pH Adjustment Settings\", \"min_ph\":%1.2f, \"max_ph\":%1.2f, \"ms_per_ml\":%d, \"ml_per_ph_per_10l\":%1.2f}\r\n", ph_setpoints.min_ph, ph_setpoints.max_ph, ph_setpoints.ms_per_ml, ph_setpoints.ml_per_ph_per_10l);
   TM_USART_Puts(USART2, buf);
 }
 
@@ -1181,7 +1181,7 @@ void print_ph(void){
 void print_ec(void){
   char buf[MAX_STR_LEN];
   memset(buf, 0, sizeof(buf));
-  sprintf(buf, "{\"name\": \"%s\", \"value\":%1.4f}\r\n", sensor_names[ADC_EC][0], adc_ec.value);
+  snprintf(buf, MAX_STR_LEN, "{\"name\": \"%s\", \"value\":%1.4f}\r\n", sensor_names[ADC_EC][0], adc_ec.value);
   TM_USART_Puts(USART2, buf);
 }
 
@@ -1191,7 +1191,7 @@ void print_settings(void){
   memset(buf, 0, sizeof(buf));
   uint8_t i;
 
-  sprintf(buf, "{\"name\":\"Misc. Settings\",\"content\":[\r\n\t\
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Misc. Settings\",\"content\":[\r\n\t\
 {\"res_liters_min\":%1.2f},\r\n\t\
 {\"res_liters_max\":%1.2f},\r\n\t\
 {\"res_liters_alarm\":%1.2f},\r\n\t\
@@ -1242,7 +1242,7 @@ void print_state(void){
   memset(buf, 0, sizeof(buf));
   uint8_t i;
 
-  sprintf(buf, "{\"name\":\"Global State\",\"content\":[\r\n\t\
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Global State\",\"content\":[\r\n\t\
 {\"ds_name\": \"sewage_pump_blocked\", \"name\": \"Sewage Pump blocked\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"sewage_tank_full\", \"name\": \"Sewage Tank full\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"sewage_tank_empty\", \"name\": \"Sewage Tank empty\", \"state\":%d},\r\n\t\
