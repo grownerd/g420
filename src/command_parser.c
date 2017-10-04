@@ -29,11 +29,13 @@ void host_cmd_get(char * item);
 void host_cmd_set(char * item, char * val);
 void host_cmd_reset(char * item, char * val);
 void set_light_time(char * val);
-void set_minmax(char * val, uint8_t minmax);
+//void set_minmax(char * val, uint8_t minmax);
 void set_gpio_output(char * val);
 void set_relay(char * val);
 void set_ph(char * val);
 void set_nutrients(char * val);
+void set_coolant(char * val);
+void set_exhaust(char * val);
 void set_misc(char * val);
 
 void command_parser(void){
@@ -185,10 +187,22 @@ void host_cmd_set(char * item, char * val) {
   if (strncmp(item, "nutrients", 9) == 0)
   {
     set_nutrients(val);
+    print_nutrients();
+  }
+  else if (strncmp(item, "coolant", 7) == 0)
+  {
+    set_coolant(val);
+    print_coolant();
+  }
+  else if (strncmp(item, "exhaust", 7) == 0)
+  {
+    set_exhaust(val);
+    print_exhaust();
   }
   else if (strncmp(item, "errors", 6) == 0)
   {
     reset_errors();
+    print_errors();
   }
   else if (strncmp(item, "light", 5) == 0)
   {
@@ -198,6 +212,7 @@ void host_cmd_set(char * item, char * val) {
   else if (strncmp(item, "relay", 5) == 0)
   {
     set_relay(val);
+    print_relays();
   }
   else if (strncmp(item, "misc", 4) == 0)
   {
@@ -208,14 +223,6 @@ void host_cmd_set(char * item, char * val) {
   {
     set_time(val);
     print_time();
-  }
-  else if (strncmp(item, "min", 3) == 0)
-  {
-    set_minmax(val, 0);
-  }
-  else if (strncmp(item, "max", 3) == 0)
-  {
-    set_minmax(val, 1);
   }
   else if (strncmp(item, "gpio", 3) == 0)
   {
@@ -397,6 +404,78 @@ void set_light_time(char * val) {
   light_timer.off_minutes = (uint8_t)atoi(part[3]);
 }
 
+#if 1
+void set_exhaust(char * val) {
+  char part[2][16];
+
+  uint8_t part_counter = 0;
+  uint8_t j = 0;
+
+  char buf[MAX_STR_LEN];
+
+
+  for (int i=0; i < strlen(val); i++){
+    char t = val[i];
+    if (t == ' ') {
+      part[part_counter][j] = '\0';
+      part[part_counter++];
+      j = 0;
+    } else {
+      part[part_counter][j++] = t;
+    }
+  }
+  part[part_counter][j] = '\0';
+
+  if (strncmp(part[0], "min_temp", 8) == 0) {
+      exhaust_setpoints.min_temp = atof(part[1]);
+
+  } else if (strncmp(part[0], "max_temp", 8) == 0) {
+      exhaust_setpoints.max_temp = atof(part[1]);
+
+  } else if (strncmp(part[0], "min_humi", 8) == 0) {
+      exhaust_setpoints.min_humi = atof(part[1]);
+
+  } else if (strncmp(part[0], "max_humi", 8) == 0) {
+      exhaust_setpoints.max_humi = atof(part[1]);
+
+  }
+
+}
+
+
+void set_coolant(char * val) {
+  char part[2][16];
+
+  uint8_t part_counter = 0;
+  uint8_t j = 0;
+
+  char buf[MAX_STR_LEN];
+
+
+  for (int i=0; i < strlen(val); i++){
+    char t = val[i];
+    if (t == ' ') {
+      part[part_counter][j] = '\0';
+      part[part_counter++];
+      j = 0;
+    } else {
+      part[part_counter][j++] = t;
+    }
+  }
+  part[part_counter][j] = '\0';
+
+  if (strncmp(part[0], "min_temp", 8) == 0) {
+      coolant_setpoints.min_temp = atof(part[1]);
+
+  } else if (strncmp(part[0], "max_temp", 8) == 0) {
+      coolant_setpoints.max_temp = atof(part[1]);
+
+  }
+
+}
+
+
+#else
 // set min/max temp/humi for exhaust control
 void set_minmax(char * val, uint8_t minmax) {
   char part[2][16];
@@ -443,6 +522,7 @@ void set_minmax(char * val, uint8_t minmax) {
     print_exhaust();
   }
 }
+#endif
 
 void set_gpio_output(char * val) {
   char part[2][16];

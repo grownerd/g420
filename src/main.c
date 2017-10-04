@@ -986,7 +986,7 @@ void print_light(void) {
   memset(buf, 0, sizeof(buf));
 
   light_timer.state = GPIO_ReadInputDataBit(relays[RELAY_LIGHT].gpio_port, relays[RELAY_LIGHT].gpio_pin);
-  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Main Light Settings\",\"content\":{\r\n\t\"on_time\":\"%02d:%02d\",\r\n\t\"off_time\":\"%02d:%02d\",\r\n\t\"state\":\"%s\"\r\n}}\r\n",
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Main Light Settings\",\"content\":[\r\n\t{\"name\": \"on_time\", \"value\": \"%02d:%02d\"},\r\n\t{\"name\": \"off_time\", \"value\": \"%02d:%02d\"},\r\n\t{\"state\":\"%s\"}\r\n]}\r\n",
     light_timer.on_hour,
     light_timer.on_minutes,
     light_timer.off_hour,
@@ -1002,7 +1002,7 @@ void print_coolant(void) {
   memset(buf, 0, sizeof(buf));
 
   coolant_setpoints.state = gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state;
-  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Coolant Control Settings\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Coolant Control Settings\",\"content\":[\r\n\t{\"name\": \"max_temp\", \"value\": %.2f},\r\n\t{\"name\": \"min_temp\", \"value\": %.2f},\r\n\t{\"state\":\"%s\"}\r\n]}\r\n",
     coolant_setpoints.max_temp,
     coolant_setpoints.min_temp,
     coolant_setpoints.state ? "On" : "Off"
@@ -1016,7 +1016,7 @@ void print_exhaust(void) {
   memset(buf, 0, sizeof(buf));
 
   exhaust_setpoints.state = GPIO_ReadInputDataBit(relays[RELAY_EXHAUST].gpio_port, relays[RELAY_EXHAUST].gpio_pin);
-  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Main Exhaust Settings\",\"content\":{\r\n\t\"max_temp\":%.2f,\r\n\t\"max_humi\":%.2f,\r\n\t\"min_temp\":%.2f,\r\n\t\"min_humi\":%.2f,\r\n\t\"state\":\"%s\"\r\n}}\r\n",
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Main Exhaust Settings\",\"content\":[\r\n\t{\"name\": \"max_temp\", \"value\": %.2f,\r\n\t{\"name\": \"max_humi\", \"value\": %.2f,\r\n\t{\"name\": \"min_temp\", \"value\": %.2f,\r\n\t{\"name\": \"min_humi\", \"value\": %.2f,\r\n\t{\"state\":\"%s\"}\r\n]}\r\n",
     exhaust_setpoints.max_temp,
     exhaust_setpoints.max_humi,
     exhaust_setpoints.min_temp,
@@ -1036,7 +1036,7 @@ void print_relays(void) {
   for (i=0; i < NUM_RELAYS; i++) {
     uint8_t state = GPIO_ReadInputDataBit(relays[i].gpio_port, relays[i].gpio_pin);
 
-    snprintf(buf, MAX_STR_LEN, "\t{\"relay_id\":%d, \"state\":%d}",
+    snprintf(buf, MAX_STR_LEN, "\t{\"relay_id\": %d, \"state\": %d}",
       i, state
     );
     TM_USART_Puts(USART2, buf);
@@ -1113,7 +1113,7 @@ void print_nutrients(void){
     
     snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"ms_per_ml\":%d,\"ml_per_10l\":%1.2f}", nutrient_pumps[i].name, nutrient_pumps[i].ms_per_ml, nutrient_pumps[i].ml_per_10l);
     TM_USART_Puts(USART2, buf);
-    if (i == NUM_GPIO_OUTPUTS -1)
+    if (i == NUM_NUTRIENT_PUMPS -1)
       TM_USART_Puts(USART2, "\r\n");
     else
       TM_USART_Puts(USART2, ",\r\n");
@@ -1181,7 +1181,7 @@ void print_ph(void){
   memset(buf, 0, sizeof(buf));
   snprintf(buf, MAX_STR_LEN, "{\"name\": \"%s\", \"value\":%1.2f}\r\n", sensor_names[ADC_PH][0], adc_ph.value);
   TM_USART_Puts(USART2, buf);
-  snprintf(buf, MAX_STR_LEN, "{\"name\": \"pH Adjustment Settings\", \"min_ph\":%1.2f, \"max_ph\":%1.2f, \"ms_per_ml\":%d, \"ml_per_ph_per_10l\":%1.2f}\r\n", ph_setpoints.min_ph, ph_setpoints.max_ph, ph_setpoints.ms_per_ml, ph_setpoints.ml_per_ph_per_10l);
+  snprintf(buf, MAX_STR_LEN, "{\"name\": \"pH Adjustment Settings\", \"content\": [{\"name\": \"min_ph\", \"value\": %1.2f},\r\n\t{\"name\": \"max_ph\", \"value\": %1.2f},\r\n\t{\"name\": \"ms_per_ml\", \"value\": %d},\r\n\t{\"name\": \"ml_per_ph_per_10l\", \"value\": %1.2f}\r\n]}\r\n", ph_setpoints.min_ph, ph_setpoints.max_ph, ph_setpoints.ms_per_ml, ph_setpoints.ml_per_ph_per_10l);
   TM_USART_Puts(USART2, buf);
 }
 
@@ -1200,25 +1200,25 @@ void print_settings(void){
   uint8_t i;
 
   snprintf(buf, MAX_STR_LEN, "{\"name\":\"Misc. Settings\",\"content\":[\r\n\t\
-{\"res_liters_min\":%1.2f},\r\n\t\
-{\"res_liters_max\":%1.2f},\r\n\t\
-{\"res_liters_alarm\":%1.2f},\r\n\t\
-{\"nutrient_factor\":%1.2f},\r\n\t\
-{\"nutrient_pause_ms\":%1.2f},\r\n\t\
-{\"ec_k\":%1.4f},\r\n\t\
-{\"ec_temp_coef\":%1.4f},\r\n\t\
-{\"ec_r1_ohms\":%d},\r\n\t\
-{\"ec_ra_ohms\":%d},\r\n\t\
-{\"ec_read_interval_s\":%d},\r\n\t\
-{\"ph4_ph\":%1.4f},\r\n\t\
-{\"ph7_ph\":%1.4f},\r\n\t\
-{\"ph4_v\":%1.4f},\r\n\t\
-{\"ph7_v\":%1.4f},\r\n\t\
-{\"vcc_v\":%1.4f},\r\n\t\
-{\"res_settling_time_s\":%d},\r\n\t\
-{\"sewage_pump_pause_s\":%d},\r\n\t\
-{\"sewage_pump_run_s\":%d},\r\n\t\
-{\"fill_to_alarm_level\":%d}]\r\n\
+{\"name\": \"res_liters_min\", \"value\": %1.2f},\r\n\t\
+{\"name\": \"res_liters_max\", \"value\": %1.2f},\r\n\t\
+{\"name\": \"res_liters_alarm\", \"value\": %1.2f},\r\n\t\
+{\"name\": \"nutrient_factor\", \"value\": %1.2f},\r\n\t\
+{\"name\": \"nutrient_pause_ms\", \"value\": %1.2f},\r\n\t\
+{\"name\": \"ec_k\", \"value\": %1.4f},\r\n\t\
+{\"name\": \"ec_temp_coef\", \"value\": %1.4f},\r\n\t\
+{\"name\": \"ec_r1_ohms\", \"value\": %d},\r\n\t\
+{\"name\": \"ec_ra_ohms\", \"value\": %d},\r\n\t\
+{\"name\": \"ec_read_interval_s\", \"value\": %d},\r\n\t\
+{\"name\": \"ph4_ph\", \"value\": %1.4f},\r\n\t\
+{\"name\": \"ph7_ph\", \"value\": %1.4f},\r\n\t\
+{\"name\": \"ph4_v\", \"value\": %1.4f},\r\n\t\
+{\"name\": \"ph7_v\", \"value\": %1.4f},\r\n\t\
+{\"name\": \"vcc_v\", \"value\": %1.4f},\r\n\t\
+{\"name\": \"res_settling_time_s\", \"value\": %d},\r\n\t\
+{\"name\": \"sewage_pump_pause_s\", \"value\": %d},\r\n\t\
+{\"name\": \"sewage_pump_run_s\", \"value\": %d},\r\n\t\
+{\"name\": \"fill_to_alarm_level\", \"value\": %d}]\r\n\
 }\r\n",
     misc_settings.res_liters_min,
     misc_settings.res_liters_max,
