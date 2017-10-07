@@ -185,7 +185,8 @@ typedef struct misc_settings {
   uint32_t res_settling_time_s;
   uint32_t sewage_pump_pause_s;
   uint32_t sewage_pump_run_s;
-  uint32_t nutrient_pause_ms;
+  uint32_t nutrient_pause_s;
+  uint32_t nutrient_stirring_s;
 
   uint8_t fill_to_alarm_level   : 1;
   uint8_t i2c_break_enabled     : 1;

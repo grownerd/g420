@@ -29,7 +29,6 @@ void host_cmd_get(char * item);
 void host_cmd_set(char * item, char * val);
 void host_cmd_reset(char * item, char * val);
 void set_light_time(char * val);
-//void set_minmax(char * val, uint8_t minmax);
 void set_gpio_output(char * val);
 void set_relay(char * val);
 void set_ph(char * val);
@@ -261,10 +260,10 @@ void set_nutrients(char * val) {
 
   uint8_t pump_number = atoi(part[0]);
 
-  if (strncmp(part[1], "ms", 2) == 0) {
-      nutrient_pumps[pump_number].ms_per_ml = atoi(part[2]);
-  } else if (strncmp(part[1], "ml", 2) == 0) {
+  if (strncmp(part[1], "ml_per_10l", 10) == 0) {
       nutrient_pumps[pump_number].ml_per_10l = atof(part[2]);
+  } else if (strncmp(part[1], "ms_per_ml", 9) == 0) {
+      nutrient_pumps[pump_number].ms_per_ml = atoi(part[2]);
   }
 
 }
@@ -291,17 +290,17 @@ void set_ph(char * val) {
   }
   part[part_counter][j] = '\0';
 
-  if (strncmp(part[0], "min", 3) == 0) {
-      ph_setpoints.min_ph = atof(part[1]);
+  if (strncmp(part[0], "ml_per_ph_10l", 13) == 0) {
+      ph_setpoints.ml_per_ph_per_10l = atof(part[1]);
 
-  } else if (strncmp(part[0], "max", 3) == 0) {
-      ph_setpoints.max_ph = atof(part[1]);
-
-  } else if (strncmp(part[0], "ms", 2) == 0) {
+  } else if (strncmp(part[0], "ms_per_ml", 9) == 0) {
       ph_setpoints.ms_per_ml = atoi(part[1]);
 
-  } else if (strncmp(part[0], "ml", 2) == 0) {
-      ph_setpoints.ml_per_ph_per_10l = atof(part[1]);
+  } else if (strncmp(part[0], "min_ph", 6) == 0) {
+      ph_setpoints.min_ph = atof(part[1]);
+
+  } else if (strncmp(part[0], "max_ph", 6) == 0) {
+      ph_setpoints.max_ph = atof(part[1]);
 
   }
 
@@ -309,7 +308,7 @@ void set_ph(char * val) {
 
 
 void set_misc(char * val) {
-  char part[2][16];
+  char part[2][32];
 
   uint8_t part_counter = 0;
   uint8_t j = 0;
@@ -329,20 +328,26 @@ void set_misc(char * val) {
   }
   part[part_counter][j] = '\0';
 
-  if (strncmp(part[0], "res_settling_time_s", 19) == 0) {
+  if (strncmp(part[0], "nutrient_stirring_s", 19) == 0) {
+    misc_settings.nutrient_stirring_s = atoi(part[1]);
+
+  } else if (strncmp(part[0], "res_settling_time_s", 19) == 0) {
     misc_settings.res_settling_time_s = atoi(part[1]);
 
   } else if (strncmp(part[0], "fill_to_alarm_level", 19) == 0) {
     misc_settings.fill_to_alarm_level = atoi(part[1]);
 
   } else if (strncmp(part[0], "sewage_pump_pause_s", 19) == 0) {
-    misc_settings.sewage_pump_pause_s = atof(part[1]);
+    misc_settings.sewage_pump_pause_s = atoi(part[1]);
 
   } else if (strncmp(part[0], "ec_read_interval_s", 18) == 0) {
     misc_settings.ec_read_interval_s = atoi(part[1]);
 
   } else if (strncmp(part[0], "sewage_pump_run_s", 17) == 0) {
-    misc_settings.sewage_pump_run_s = atof(part[1]);
+    misc_settings.sewage_pump_run_s = atoi(part[1]);
+
+  } else if (strncmp(part[0], "nutrient_pause_s", 16) == 0) {
+    misc_settings.nutrient_pause_s = atoi(part[1]);
 
   } else if (strncmp(part[0], "nutrient_factor", 15) == 0) {
     misc_settings.nutrient_factor = atof(part[1]);
@@ -381,14 +386,14 @@ void set_misc(char * val) {
 
 // should be hh:mm-hh:mm, but all combinations of : and - are allowed
 void set_light_time(char * val) {
-  char part[4][3];
+  char part[3][16];
 
   uint8_t part_counter = 0;
   uint8_t j = 0;
 
   for (int i=0; i < strlen(val); i++){
     char t = val[i];
-    if ((t == '-') || (t == ':')) {
+    if ((t == '-') || (t == ':') || (t == ' ')) {
       part[part_counter][j] = '\0';
       part[part_counter++];
       j = 0;
@@ -398,13 +403,17 @@ void set_light_time(char * val) {
   }
   part[part_counter][j] = '\0';
 
-  light_timer.on_hour = (uint8_t)atoi(part[0]);
-  light_timer.on_minutes = (uint8_t)atoi(part[1]);
-  light_timer.off_hour = (uint8_t)atoi(part[2]);
-  light_timer.off_minutes = (uint8_t)atoi(part[3]);
+  if (strncmp(part[0], "on_time", 7) == 0) {
+    light_timer.on_hour = (uint8_t)atoi(part[1]);
+    light_timer.on_minutes = (uint8_t)atoi(part[2]);
+
+  } else if (strncmp(part[0], "off_time", 8) == 0) {
+    light_timer.off_hour = (uint8_t)atoi(part[1]);
+    light_timer.off_minutes = (uint8_t)atoi(part[2]);
+
+  }
 }
 
-#if 1
 void set_exhaust(char * val) {
   char part[2][16];
 
@@ -474,55 +483,6 @@ void set_coolant(char * val) {
 
 }
 
-
-#else
-// set min/max temp/humi for exhaust control
-void set_minmax(char * val, uint8_t minmax) {
-  char part[2][16];
-
-  uint8_t part_counter = 0;
-  uint8_t j = 0;
-  char buf[MAX_STR_LEN];
-
-  for (int i=0; i < strlen(val); i++){
-    char t = val[i];
-    if (t == ' ') {
-      part[part_counter][j] = '\0';
-      part[part_counter++];
-      j = 0;
-    } else {
-      part[part_counter][j++] = t;
-    }
-  }
-  part[part_counter][j] = '\0';
-
-  float setpoint = atof(part[1]);
-  snprintf(buf, MAX_STR_LEN, "{\"event\": \"Setting %s %s to %2.2f\", \"time\": \"%s\"}\r\n", minmax ? "max" : "min", part[0], setpoint, global_state.datestring);
-
-  //snprintf(buf, MAX_STR_LEN, "Setting \"%s\" to %s\r\n",part[0], setpoint);
-  TM_USART_Puts(USART2, buf);
-
-  if (strncmp(part[0], "temp_res", 8) == 0) {
-    if (minmax)
-      coolant_setpoints.max_temp = setpoint;
-    else
-      coolant_setpoints.min_temp = setpoint;
-    print_coolant();
-  } else if (strncmp(part[0], "temp_air", 8) == 0) {
-    if (minmax)
-      exhaust_setpoints.max_temp = setpoint;
-    else
-      exhaust_setpoints.min_temp = setpoint;
-    print_exhaust();
-  } else if (strncmp(part[0], "humi", 4) == 0) {
-    if (minmax)
-      exhaust_setpoints.max_humi = setpoint;
-    else
-      exhaust_setpoints.min_humi = setpoint;
-    print_exhaust();
-  }
-}
-#endif
 
 void set_gpio_output(char * val) {
   char part[2][16];

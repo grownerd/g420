@@ -359,7 +359,8 @@ void set_defaults(void){
   light_timer.off_hour = 22;
   light_timer.off_minutes = 0;
 
-  misc_settings.nutrient_pause_ms = 5000;
+  misc_settings.nutrient_stirring_s = 300;
+  misc_settings.nutrient_pause_s = 30;
   misc_settings.res_liters_min = 10.0f;
   misc_settings.res_liters_max = 12.0f;
   misc_settings.res_liters_alarm = 14.0f;
@@ -396,6 +397,7 @@ void emergency_stop(uint8_t release){
     runfor = 0;
     global_state.sewage_pump_blocked = 0;
     global_state.reservoir_state = NORMAL_IDLE;
+    print_state();
   } else {
     snprintf(buf, MAX_STR_LEN, "{\"event\": \"Emergency STOP!\", \"time\": \"%s\"}\r\n", global_state.datestring);
     global_state.drain_cycle_active = 0;
@@ -404,6 +406,7 @@ void emergency_stop(uint8_t release){
     global_state.adding_nutrients = 0;
     global_state.sewage_pump_blocked = 1;
     global_state.reservoir_state = EMERGENCY_STOP;
+    print_state();
   }
 
   uint8_t i;
@@ -449,6 +452,7 @@ void reservoir_level_ctrl(void){
 
   if ((global_state.reservoir_min) && ((global_state.reservoir_max) || (global_state.reservoir_alarm))){
     global_state.reservoir_state = LEVEL_ERROR;
+    print_state();
   }
 
   switch(global_state.reservoir_state){
@@ -466,16 +470,19 @@ void reservoir_level_ctrl(void){
           gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
           global_state.reservoir_state = DRAIN_CYCLE_DRAINING;
           snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Draining started\", \"time\": \"%s\"}\r\n", global_state.datestring);
+          print_state();
           break;
         }
       } 
 
       if ((misc_settings.fill_to_alarm_level) && (!global_state.reservoir_alarm)){
         global_state.reservoir_state = NORMAL_FILLING;
+        print_state();
       }
 
       if ((global_state.reservoir_min) && (!global_state.reservoir_max) && (!global_state.reservoir_alarm)){
         global_state.reservoir_state = NORMAL_MIN;
+        print_state();
       }
 
       if ((!global_state.adding_nutrients) && (global_state.nutrients_done))
@@ -490,7 +497,7 @@ void reservoir_level_ctrl(void){
       if (!stirring_time) stirring_time = TM_Time;
 
       if ((global_state.reservoir_min) && (!global_state.reservoir_max) && (!global_state.reservoir_alarm)){
-        if (TM_Time >= (stirring_time + misc_settings.res_settling_time_s * 1000)) {
+        if (TM_Time >= (stirring_time + misc_settings.nutrient_stirring_s * 1000)) {
           stirring_time = 0;
           global_state.stirring_nutrients = 0;
           if (!global_state.nutrients_done)
@@ -500,6 +507,7 @@ void reservoir_level_ctrl(void){
         } else {
           global_state.reservoir_state = NORMAL_IDLE;
         }
+        print_state();
       }
       break;
 
@@ -509,6 +517,7 @@ void reservoir_level_ctrl(void){
         gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
       } else {
         global_state.reservoir_state = NORMAL_MAX;
+        print_state();
       }
       break;
 
@@ -528,18 +537,20 @@ void reservoir_level_ctrl(void){
         gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
       } else {
         global_state.reservoir_state = DRAIN_CYCLE_FULL;
+        print_state();
       }
       break;
 
     case NORMAL_MAX:
-      if (global_state.nutrients_done){
+      //if (global_state.nutrients_done){
         global_state.nutrients_done = 0;
         global_state.reservoir_state = NORMAL_IDLE;
-      } else {
-        global_state.reservoir_state = NORMAL_NUTRIENTS;
-      }
+      //} else {
+        //global_state.reservoir_state = NORMAL_NUTRIENTS;
+      //}
       snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir topping up completed\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
+      print_state();
       break;
 
     case DRAIN_CYCLE_FULL:
@@ -552,6 +563,7 @@ void reservoir_level_ctrl(void){
       }
       snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Filling complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
+      print_state();
       break;
 
     case DRAIN_CYCLE_DRAINING:
@@ -568,6 +580,7 @@ void reservoir_level_ctrl(void){
         global_state.reservoir_state = DRAIN_CYCLE_EMPTY;
         gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 0;
         snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Draining complete\", \"time\": \"%s\"}\r\n", global_state.datestring);
+        print_state();
       }
       drain_time = TM_Time;
       break;
@@ -577,6 +590,7 @@ void reservoir_level_ctrl(void){
       snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Filling started\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
       global_state.stirring_nutrients = 1;
+      print_state();
       break;
 
     case MANUAL_DRAIN:
@@ -592,6 +606,7 @@ void reservoir_level_ctrl(void){
       global_state.reservoir_state = EMERGENCY_STOP;
       emergency_stop(0);
       snprintf(buf, MAX_STR_LEN, "{\"error\": \"Impossible Level Switch Reading\", \"time\": \"%s\"}\r\n", global_state.datestring);
+      print_state();
       break;
 
     case EMERGENCY_STOP:
@@ -625,7 +640,7 @@ void nutrient_pump_ctrl(void){
     }
 
     static uint32_t next_time = 0;
-    if (!next_time) next_time = TM_Time + misc_settings.nutrient_pause_ms;
+    if (!next_time) next_time = TM_Time + (misc_settings.nutrient_pause_s * 1000);
 
     if (TM_Time >= next_time) {
       static uint8_t i = 0;
@@ -655,7 +670,7 @@ void nutrient_pump_ctrl(void){
         snprintf(buf, MAX_STR_LEN, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][0], gpio_outputs[gpio_out].run_for_ms, global_state.datestring);
         TM_USART_Puts(USART2, buf);
 
-        next_time = TM_Time + (dosage_ml * nutrient_pumps[i].ms_per_ml) + misc_settings.nutrient_pause_ms;
+        next_time = TM_Time + (dosage_ml * nutrient_pumps[i].ms_per_ml) + (misc_settings.nutrient_pause_s * 1000);
         i++;
 
       } else {
@@ -666,6 +681,7 @@ void nutrient_pump_ctrl(void){
         global_state.adding_nutrients = 0;
         global_state.nutrients_done = 1;
         i = 0;
+        print_state();
       }
 
     }
@@ -730,6 +746,7 @@ void ph_ctrl(void){
         gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = 0;
         global_state.adjusting_ph = 0;
         global_state.reservoir_state = NORMAL_IDLE;
+        print_state();
       }
       next_time = TM_Time + (misc_settings.res_settling_time_s * 1000) + ms_to_run;
     }
@@ -738,6 +755,7 @@ void ph_ctrl(void){
   if  ((gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms == 0) && (global_state.adjusting_ph)){
     global_state.adjusting_ph = 0;
     global_state.reservoir_state = NORMAL_IDLE;
+    print_state();
   }
 }
 
@@ -855,9 +873,11 @@ void gpio_ctrl(void){
         } else {
           TM_USART_Puts(USART2, "{\"event\": \"Timer interval too long - Running under gpio_ctrl()\"}\r\n");
         }
+      }
+      if (GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin) != gpio_outputs[i].desired_state) {
+        GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
         print_gpio_outputs();
       }
-      GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, gpio_outputs[i].desired_state);
     } else {
       GPIO_WriteBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin, 0);
     }
@@ -1002,9 +1022,9 @@ void print_coolant(void) {
   memset(buf, 0, sizeof(buf));
 
   coolant_setpoints.state = gpio_outputs[GPIO_OUTPUT_COOLANT_PUMP].desired_state;
-  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Coolant Control Settings\",\"content\":[\r\n\t{\"name\": \"max_temp\", \"value\": %.2f},\r\n\t{\"name\": \"min_temp\", \"value\": %.2f},\r\n\t{\"state\":\"%s\"}\r\n]}\r\n",
-    coolant_setpoints.max_temp,
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Coolant Control Settings\",\"content\":[\r\n\t{\"name\": \"min_temp\", \"value\": %.2f},\r\n\t{\"name\": \"max_temp\", \"value\": %.2f},\r\n\t{\"state\":\"%s\"}\r\n]}\r\n",
     coolant_setpoints.min_temp,
+    coolant_setpoints.max_temp,
     coolant_setpoints.state ? "On" : "Off"
   );
   TM_USART_Puts(USART2, buf);
@@ -1016,11 +1036,11 @@ void print_exhaust(void) {
   memset(buf, 0, sizeof(buf));
 
   exhaust_setpoints.state = GPIO_ReadInputDataBit(relays[RELAY_EXHAUST].gpio_port, relays[RELAY_EXHAUST].gpio_pin);
-  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Main Exhaust Settings\",\"content\":[\r\n\t{\"name\": \"max_temp\", \"value\": %.2f,\r\n\t{\"name\": \"max_humi\", \"value\": %.2f,\r\n\t{\"name\": \"min_temp\", \"value\": %.2f,\r\n\t{\"name\": \"min_humi\", \"value\": %.2f,\r\n\t{\"state\":\"%s\"}\r\n]}\r\n",
-    exhaust_setpoints.max_temp,
-    exhaust_setpoints.max_humi,
+  snprintf(buf, MAX_STR_LEN, "{\"name\":\"Main Exhaust Settings\",\"content\":[\r\n\t{\"name\": \"min_temp\", \"value\": %.2f},\r\n\t{\"name\": \"max_temp\", \"value\": %.2f},\r\n\t{\"name\": \"min_humi\", \"value\": %.2f},\r\n\t{\"name\": \"max_humi\", \"value\": %.2f},\r\n\t{\"state\":\"%s\"}\r\n]}\r\n",
     exhaust_setpoints.min_temp,
+    exhaust_setpoints.max_temp,
     exhaust_setpoints.min_humi,
+    exhaust_setpoints.max_humi,
     exhaust_setpoints.state ? "On" : "Off"
   );
   TM_USART_Puts(USART2, buf);
@@ -1111,7 +1131,7 @@ void print_nutrients(void){
   for (i=0; i<NUM_NUTRIENT_PUMPS; i++) {
 
     
-    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"ms_per_ml\":%d,\"ml_per_10l\":%1.2f}", nutrient_pumps[i].name, nutrient_pumps[i].ms_per_ml, nutrient_pumps[i].ml_per_10l);
+    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"content\":[{\"name\": \"ms_per_ml\", \"value\": %d}, {\"name\": \"ml_per_10l\", \"value\": %1.2f}]}", nutrient_pumps[i].name, nutrient_pumps[i].ms_per_ml, nutrient_pumps[i].ml_per_10l);
     TM_USART_Puts(USART2, buf);
     if (i == NUM_NUTRIENT_PUMPS -1)
       TM_USART_Puts(USART2, "\r\n");
@@ -1204,7 +1224,8 @@ void print_settings(void){
 {\"name\": \"res_liters_max\", \"value\": %1.2f},\r\n\t\
 {\"name\": \"res_liters_alarm\", \"value\": %1.2f},\r\n\t\
 {\"name\": \"nutrient_factor\", \"value\": %1.2f},\r\n\t\
-{\"name\": \"nutrient_pause_ms\", \"value\": %1.2f},\r\n\t\
+{\"name\": \"nutrient_pause_s\", \"value\": %d},\r\n\t\
+{\"name\": \"nutrient_stirring_s\", \"value\": %d},\r\n\t\
 {\"name\": \"ec_k\", \"value\": %1.4f},\r\n\t\
 {\"name\": \"ec_temp_coef\", \"value\": %1.4f},\r\n\t\
 {\"name\": \"ec_r1_ohms\", \"value\": %d},\r\n\t\
@@ -1224,7 +1245,8 @@ void print_settings(void){
     misc_settings.res_liters_max,
     misc_settings.res_liters_alarm,
     misc_settings.nutrient_factor,
-    misc_settings.nutrient_pause_ms,
+    misc_settings.nutrient_pause_s,
+    misc_settings.nutrient_stirring_s,
     misc_settings.ec_k,
     misc_settings.ec_temp_coef,
     misc_settings.ec_r1_ohms,
