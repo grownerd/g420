@@ -346,24 +346,24 @@ void set_defaults(void){
   ph_setpoints.ms_per_ml = 970;
   ph_setpoints.ml_per_ph_per_10l = 1.2f;
 
-  coolant_setpoints.max_temp = 16.49f;
-  coolant_setpoints.min_temp = 16.41f;
+  coolant_setpoints.max_temp = 18.6f;
+  coolant_setpoints.min_temp = 18.5f;
 
   exhaust_setpoints.max_temp = 26.00f;
   exhaust_setpoints.max_humi = 60.00f;
   exhaust_setpoints.min_temp = 20.00f;
   exhaust_setpoints.min_humi = 40.00f;
 
-  light_timer.on_hour = 10;
+  light_timer.on_hour = 7;
   light_timer.on_minutes = 0;
-  light_timer.off_hour = 22;
+  light_timer.off_hour = 1;
   light_timer.off_minutes = 0;
 
   misc_settings.nutrient_stirring_s = 300;
   misc_settings.nutrient_pause_s = 30;
-  misc_settings.res_liters_min = 10.0f;
-  misc_settings.res_liters_max = 12.0f;
-  misc_settings.res_liters_alarm = 14.0f;
+  misc_settings.res_liters_min = 11.0f;
+  misc_settings.res_liters_max = 13.0f;
+  misc_settings.res_liters_alarm = 15.0f;
   misc_settings.nutrient_factor = 0.5f;
   misc_settings.flow_sensor_lag = 3000;
   misc_settings.i2c_max_reading_age_s = 5;
@@ -950,6 +950,8 @@ void light_scheduler(void) {
   } else if (on_time < off_time) {
     if (current_time >= on_time && current_time < off_time)
       desired_state = 1;
+  } else if (on_time == off_time) {
+    desired_state = 1;
   }
 
   if (light_timer.state != desired_state) {

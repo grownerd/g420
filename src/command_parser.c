@@ -346,11 +346,20 @@ void set_misc(char * val) {
   } else if (strncmp(part[0], "sewage_pump_run_s", 17) == 0) {
     misc_settings.sewage_pump_run_s = atoi(part[1]);
 
+  } else if (strncmp(part[0], "res_liters_alarm", 16) == 0) {
+    misc_settings.res_liters_alarm = atoi(part[1]);
+
   } else if (strncmp(part[0], "nutrient_pause_s", 16) == 0) {
     misc_settings.nutrient_pause_s = atoi(part[1]);
 
   } else if (strncmp(part[0], "nutrient_factor", 15) == 0) {
     misc_settings.nutrient_factor = atof(part[1]);
+
+  } else if (strncmp(part[0], "res_liters_min", 14) == 0) {
+    misc_settings.res_liters_min = atoi(part[1]);
+
+  } else if (strncmp(part[0], "res_liters_max", 14) == 0) {
+    misc_settings.res_liters_max = atoi(part[1]);
 
   } else if (strncmp(part[0], "ec_temp_coef", 12) == 0) {
     misc_settings.ec_temp_coef = atof(part[1]);
