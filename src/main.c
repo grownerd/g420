@@ -459,6 +459,7 @@ void reservoir_level_ctrl(void){
 
     case NORMAL_IDLE:
       if (global_state.drain_cycle_active){
+/*
         if (!global_state.sewage_tank_empty){
           snprintf(buf, MAX_STR_LEN, "{\"error\": \"Sewage Tank not empty\", \"time\": \"%s\"}\r\n", global_state.datestring);
           global_state.drain_cycle_active = 0;
@@ -466,13 +467,15 @@ void reservoir_level_ctrl(void){
           snprintf(buf, MAX_STR_LEN, "{\"error\": \"Water Tank empty\", \"time\": \"%s\"}\r\n", global_state.datestring);
           global_state.drain_cycle_active = 0;
         } else {
+*/
+
           gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 5000;
           gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
           global_state.reservoir_state = DRAIN_CYCLE_DRAINING;
           snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Draining started\", \"time\": \"%s\"}\r\n", global_state.datestring);
           print_state();
           break;
-        }
+//        }
       } 
 
       if ((misc_settings.fill_to_alarm_level) && (!global_state.reservoir_alarm)){
