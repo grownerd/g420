@@ -332,19 +332,23 @@ void set_defaults(void){
   nutrient_pumps[0].gpio_output = GPIO_OUTPUT_NUTRIENT1_PUMP;
   nutrient_pumps[0].ms_per_ml = 947;
   nutrient_pumps[0].ml_per_10l = 2.5;
+  nutrient_pumps[0].ml_in_res = 0;
   nutrient_pumps[1].name = gpio_output_names[GPIO_OUTPUT_NUTRIENT2_PUMP][0];
   nutrient_pumps[1].gpio_output = GPIO_OUTPUT_NUTRIENT2_PUMP;
   nutrient_pumps[1].ms_per_ml = 1219;
   nutrient_pumps[1].ml_per_10l = 2.5;
+  nutrient_pumps[1].ml_in_res = 0;
   nutrient_pumps[2].name = gpio_output_names[GPIO_OUTPUT_NUTRIENT3_PUMP][0];
   nutrient_pumps[2].gpio_output = GPIO_OUTPUT_NUTRIENT3_PUMP;
   nutrient_pumps[2].ms_per_ml = 1020;
   nutrient_pumps[2].ml_per_10l = 2.5;
+  nutrient_pumps[2].ml_in_res = 0;
 
   ph_setpoints.min_ph = 5.6f;
   ph_setpoints.max_ph = 6.0f;
   ph_setpoints.ms_per_ml = 970;
   ph_setpoints.ml_per_ph_per_10l = 1.2f;
+  ph_setpoints.ml_in_res = 0;
 
   coolant_setpoints.max_temp = 18.6f;
   coolant_setpoints.min_temp = 18.5f;
@@ -593,6 +597,9 @@ void reservoir_level_ctrl(void){
       snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir Filling started\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 5000;
       global_state.stirring_nutrients = 1;
+      for (uint8_t i=0; i<NUM_NUTRIENT_PUMPS; i++)
+        nutrient_pumps[i].ml_in_res = 0;
+      ph_setpoints.ml_in_res = 0;
       print_state();
       break;
 
@@ -667,8 +674,9 @@ void nutrient_pump_ctrl(void){
         uint8_t gpio_out = nutrient_pumps[i].gpio_output;
 
         gpio_outputs[gpio_out].run_for_ms = dosage_ml * nutrient_pumps[i].ms_per_ml;
+        nutrient_pumps[i].ml_in_res += dosage_ml;
 
-        snprintf(buf, MAX_STR_LEN, "{\"info\": \"%s\", \"amount_ml\": %1.2f, \"liters_in_res\": %1.2f, \"ts\": %d, \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][1], dosage_ml, liters_added, TM_Time, global_state.datestring);
+        snprintf(buf, MAX_STR_LEN, "{\"info\": \"%s\", \"amount_ml\": %1.2f, \"ml_in_res\": %1.2f, \"ts\": %d, \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][1], dosage_ml, nutrient_pumps[i].ml_in_res, TM_Time, global_state.datestring);
         TM_USART_Puts(USART2, buf);
         snprintf(buf, MAX_STR_LEN, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][0], gpio_outputs[gpio_out].run_for_ms, global_state.datestring);
         TM_USART_Puts(USART2, buf);
@@ -742,8 +750,9 @@ void ph_ctrl(void){
         ms_to_run = ml_to_add * ph_setpoints.ms_per_ml;
         global_state.adjusting_ph = 1;
         gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = ms_to_run;
+        ph_setpoints.ml_in_res += ml_to_add;
 
-        snprintf(buf, MAX_STR_LEN, "{\"info\": \"ph_down\", \"amount_ml\": %1.2f, \"liters_in_res\": %1.2f, \"ph_delta\": %1.2f, \"ts\": %d, \"run_for_ms\": %d, \"time\": \"%s\"}\r\n", ml_to_add, liters_in_res, ph_delta, TM_Time, gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms, global_state.datestring);
+        snprintf(buf, MAX_STR_LEN, "{\"info\": \"ph_down\", \"amount_ml\": %1.2f, \"ml_in_res\": %1.2f, \"ph_delta\": %1.2f, \"ts\": %d, \"run_for_ms\": %d, \"time\": \"%s\"}\r\n", ml_to_add, ph_setpoints.ml_in_res, ph_delta, TM_Time, gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms, global_state.datestring);
         TM_USART_Puts(USART2, buf);
       } else {
         gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = 0;

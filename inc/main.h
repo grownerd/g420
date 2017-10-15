@@ -149,6 +149,7 @@ typedef struct ph_setpoints {
   float min_ph;
   float max_ph;
   float ml_per_ph_per_10l;
+  float ml_in_res;
   uint32_t ms_per_ml;
 }ph_setpoints_struct_t;
 
@@ -157,6 +158,7 @@ ph_setpoints_struct_t ph_setpoints;
 typedef struct nutrient_pump {
   uint32_t ms_per_ml;
   float ml_per_10l;
+  float ml_in_res;
   uint8_t gpio_output;
   char* name;
 } nutrient_pump_struct_t;

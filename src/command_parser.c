@@ -262,8 +262,13 @@ void set_nutrients(char * val) {
 
   if (strncmp(part[1], "ml_per_10l", 10) == 0) {
       nutrient_pumps[pump_number].ml_per_10l = atof(part[2]);
+  } else if (strncmp(part[1], "ml_in_res", 9) == 0) {
+      nutrient_pumps[pump_number].ml_in_res = atof(part[2]);
   } else if (strncmp(part[1], "ms_per_ml", 9) == 0) {
       nutrient_pumps[pump_number].ms_per_ml = atoi(part[2]);
+  } else if (strncmp(part[1], "add_ml", 6) == 0) {
+      uint8_t gpio_out = nutrient_pumps[pump_number].gpio_output;
+      gpio_outputs[gpio_out].run_for_ms = atof(part[2]) * nutrient_pumps[pump_number].ms_per_ml;
   }
 
 }
@@ -293,6 +298,9 @@ void set_ph(char * val) {
   if (strncmp(part[0], "ml_per_ph_10l", 13) == 0) {
       ph_setpoints.ml_per_ph_per_10l = atof(part[1]);
 
+  } else if (strncmp(part[0], "ml_in_res", 9) == 0) {
+      ph_setpoints.ml_in_res = atof(part[1]);
+
   } else if (strncmp(part[0], "ms_per_ml", 9) == 0) {
       ph_setpoints.ms_per_ml = atoi(part[1]);
 
@@ -301,6 +309,9 @@ void set_ph(char * val) {
 
   } else if (strncmp(part[0], "max_ph", 6) == 0) {
       ph_setpoints.max_ph = atof(part[1]);
+
+  } else if (strncmp(part[0], "add_ml", 6) == 0) {
+      gpio_outputs[GPIO_OUTPUT_PHDOWN_PUMP].run_for_ms = atof(part[1]) * ph_setpoints.ms_per_ml;
 
   }
 
