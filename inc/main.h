@@ -4,10 +4,10 @@
 
 #define MAX_SENSOR_NAME_LENGTH  64
 #define MAX_OUTPUT_NAME_LENGTH  64
-#define NUM_SENSORS 7
+#define NUM_SENSORS 8
 #define NUM_NUTRIENT_PUMPS 3
 #define NUM_RES_STATES 14
-#define NUM_UNITS 8
+#define NUM_UNITS 9
 #define MAX_UNIT_NAME_LENGTH 9
 #define MAX_STR_LEN 2048
 #define V_IN 3.3F
@@ -83,6 +83,7 @@ typedef enum names {
   PRES_MAIN,
   ADC_PH,
   ADC_EC,
+  UART_CO2,
 } sensor_names_enum_t;
 
 typedef enum units {
@@ -93,7 +94,8 @@ typedef enum units {
   PH,
   MS_CM,
   VOLT,
-  AMP
+  AMP,
+  PPM,
 } unit_t;
 
 typedef struct sensor {
@@ -109,6 +111,7 @@ extern sensor_t bme280_humi;
 extern sensor_t bme280_press;
 extern sensor_t adc_ph;
 extern sensor_t adc_ec;
+extern sensor_t uart_co2;
 
 
 typedef struct light_timer {
@@ -154,6 +157,14 @@ typedef struct ph_setpoints {
 }ph_setpoints_struct_t;
 
 ph_setpoints_struct_t ph_setpoints;
+
+typedef struct co2_setpoints {
+  float min_co2;
+  float max_co2;
+  uint32_t ms_per_100ppm;
+}co2_setpoints_struct_t;
+
+co2_setpoints_struct_t co2_setpoints;
 
 typedef struct nutrient_pump {
   uint32_t ms_per_ml;
@@ -210,15 +221,16 @@ typedef struct global_state {
   uint8_t sewage_tank_empty     : 1;
   uint8_t drain_cycle_active    : 1;
   uint8_t adjusting_ph          : 1;
+  uint8_t adjusting_nutrients   : 1;
   uint8_t adding_nutrients      : 1;
   uint8_t stirring_nutrients    : 1;
-  uint8_t nutrients_done        : 1;
 
+  uint8_t nutrients_done        : 1;
   uint8_t reservoir_alarm       : 1;
   uint8_t reservoir_max         : 1;
   uint8_t reservoir_min         : 1;
   uint8_t water_tank_empty      : 1;
-  uint8_t                       : 4;
+  uint8_t                       : 3;
 
   uint8_t active_dosing_pump_gpio;
 

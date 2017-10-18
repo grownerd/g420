@@ -102,6 +102,7 @@ char res_state_names[NUM_RES_STATES][2][MAX_SENSOR_NAME_LENGTH + 1] = {
   { "Emergency Stop", "emergency_stop" },
 };
 
+// keep ds names below 14 chars as another 5 are added later and only 19 are allowed!!!
 char gpio_output_names[NUM_GPIO_OUTPUTS][2][MAX_OUTPUT_NAME_LENGTH + 1] = {
   { "Fill Pump", "fill_pump" },
   { "Drain Pump", "drain_pump" },
@@ -118,13 +119,14 @@ char gpio_output_names[NUM_GPIO_OUTPUTS][2][MAX_OUTPUT_NAME_LENGTH + 1] = {
 
 // list onewire sensors first!
 char sensor_names[NUM_SENSORS][2][MAX_SENSOR_NAME_LENGTH + 1] = {
-  { "Water Tank Temperature", "storage_temp" },
-  { "Reservoir Temperature", "res_temp" },
-  { "Tent Temperature", "tent_temp" },
-  { "Tent rel. Humidity", "tent_humi" },
-  { "Tent Pressure", "tent_press" },
-  { "Reservoir Acidity", "res_ph" },
-  { "Reservoir EC", "res_ec" },
+  { "Storage Temp.", "storage_temp" },
+  { "Res. Temp.", "res_temp" },
+  { "Air Temp.", "tent_temp" },
+  { "Air rel. Humi.", "tent_humi" },
+  { "Air Pressure", "tent_press" },
+  { "Res. Acidity", "res_ph" },
+  { "Res. EC", "res_ec" },
+  { "Air CO2", "tent_co2" },
 };
 
 char unit_names[NUM_UNITS][MAX_UNIT_NAME_LENGTH + 1] = {
@@ -136,10 +138,12 @@ char unit_names[NUM_UNITS][MAX_UNIT_NAME_LENGTH + 1] = {
   "mS/cm",
   "V",
   "A",
+  "ppm",
 };
 
 s8 init_bme280(struct bme280_t * bme280);
 void read_bme280(struct bme280_t * bme280, float * p_temp, float * p_humi, float * p_press);
+void read_co2_sensor(void);
 
 uint8_t watchdog_barked;
 
@@ -148,6 +152,7 @@ sensor_t bme280_humi;
 sensor_t bme280_press;
 sensor_t adc_ph;
 sensor_t adc_ec;
+sensor_t uart_co2;
 
 sensor_t ds18b20_sensors[DS18B20_NUM_DEVICES];
 
@@ -167,7 +172,8 @@ int main(void) {
   TM_RTC_Init(TM_RTC_ClockSource_Internal);
   update_datestring();
   
-  TM_USART_Init(USART2, TM_USART_PinsPack_1, 115200);
+  TM_USART_Init(USART2, TM_USART_PinsPack_1, 115200); // PA2, PA3; Raspberry Pi I/O
+  TM_USART_Init(USART3, TM_USART_PinsPack_1, 9600); // PB10, PB11; CO2-Sensor
   snprintf(buf, MAX_STR_LEN, "{\"event\": \"System Startup\", \"sysclk_frequency\": %d, \"pclk1_frequency\": %d, \"time\": \"%s\"}\r\n", RCC_Clocks.SYSCLK_Frequency, RCC_Clocks.PCLK1_Frequency, global_state.datestring);
   TM_USART_Puts(USART2, buf);
 
@@ -229,6 +235,9 @@ int main(void) {
   adc_ec.name = sensor_names[ADC_EC][0];
   adc_ec.unit = MS_CM;
 
+  uart_co2.name = sensor_names[UART_CO2][0];
+  uart_co2.unit = PPM;
+
 
   fdc1004_init();
 
@@ -260,6 +269,7 @@ int main(void) {
     // End of 5 second loop
 
     // Read Sensors
+    read_co2_sensor();
     fdc1004_read(capsense_data);
     ds18b20_read_temp();
     read_ph(&adc_ph.value);
@@ -641,7 +651,7 @@ void nutrient_pump_ctrl(void){
       TM_USART_Puts(USART2, buf);
     }
 
-  }else if (global_state.adding_nutrients){
+  } else if ((global_state.adding_nutrients) || (global_state.adjusting_nutrients)) {
     if (gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state == 1){
       gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state = 0;
       gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].run_for_ms = 0;
@@ -673,13 +683,29 @@ void nutrient_pump_ctrl(void){
         float dosage_ml = (nutrient_pumps[i].ml_per_10l * misc_settings.nutrient_factor) / 10.0f * liters_added;
         uint8_t gpio_out = nutrient_pumps[i].gpio_output;
 
-        gpio_outputs[gpio_out].run_for_ms = dosage_ml * nutrient_pumps[i].ms_per_ml;
-        nutrient_pumps[i].ml_in_res += dosage_ml;
+        if (global_state.adjusting_nutrients){
+          uint8_t liters_water = misc_settings.res_liters_max;
 
-        snprintf(buf, MAX_STR_LEN, "{\"info\": \"%s\", \"amount_ml\": %1.2f, \"ml_in_res\": %1.2f, \"ts\": %d, \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][1], dosage_ml, nutrient_pumps[i].ml_in_res, TM_Time, global_state.datestring);
-        TM_USART_Puts(USART2, buf);
-        snprintf(buf, MAX_STR_LEN, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][0], gpio_outputs[gpio_out].run_for_ms, global_state.datestring);
-        TM_USART_Puts(USART2, buf);
+          if (global_state.reservoir_alarm)
+            liters_water = misc_settings.res_liters_alarm;
+          else if (!global_state.reservoir_max)
+            liters_water = misc_settings.res_liters_max - (misc_settings.res_liters_max - misc_settings.res_liters_min);
+          float calc_ml = (nutrient_pumps[i].ml_per_10l * misc_settings.nutrient_factor) / 10.0f * liters_water;
+          if (nutrient_pumps[i].ml_in_res < calc_ml)
+            dosage_ml = calc_ml - nutrient_pumps[i].ml_in_res;
+
+
+        }
+
+        if (dosage_ml > 0.0f) {
+          gpio_outputs[gpio_out].run_for_ms = dosage_ml * nutrient_pumps[i].ms_per_ml;
+          nutrient_pumps[i].ml_in_res += dosage_ml;
+
+          snprintf(buf, MAX_STR_LEN, "{\"info\": \"%s\", \"amount_ml\": %1.2f, \"ml_in_res\": %1.2f, \"ts\": %d, \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][1], dosage_ml, nutrient_pumps[i].ml_in_res, TM_Time, global_state.datestring);
+          TM_USART_Puts(USART2, buf);
+          snprintf(buf, MAX_STR_LEN, "{\"event\": \"%s turned on for %d ms\", \"time\": \"%s\"}\r\n", gpio_output_names[gpio_out][0], gpio_outputs[gpio_out].run_for_ms, global_state.datestring);
+          TM_USART_Puts(USART2, buf);
+        }
 
         next_time = TM_Time + (dosage_ml * nutrient_pumps[i].ms_per_ml) + (misc_settings.nutrient_pause_s * 1000);
         i++;
@@ -1009,7 +1035,11 @@ void print_env(void) {
   snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"},\r\n", sensor_names[ADC_PH][0], sensor_names[ADC_PH][1], adc_ph.value, unit_names[adc_ph.unit]);
   TM_USART_Puts(USART2, buf);
 
-  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"}\r\n", sensor_names[ADC_EC][0], sensor_names[ADC_EC][1], adc_ec.value, unit_names[adc_ec.unit]);
+  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"},\r\n", sensor_names[ADC_EC][0], sensor_names[ADC_EC][1], adc_ec.value, unit_names[adc_ec.unit]);
+  TM_USART_Puts(USART2, buf);
+
+
+  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\",\"ds_name\": \"%s\", \"value\":%1.2f, \"unit\":\"%s\"}\r\n", sensor_names[UART_CO2][0], sensor_names[UART_CO2][1], uart_co2.value, unit_names[uart_co2.unit]);
   TM_USART_Puts(USART2, buf);
 
   TM_USART_Puts(USART2, "]}\r\n");
@@ -1123,7 +1153,7 @@ void print_gpio_outputs(void){
   for (i=0; i<NUM_GPIO_OUTPUTS; i++) {
 
     uint8_t pinstate = GPIO_ReadInputDataBit(gpio_outputs[i].gpio_port, gpio_outputs[i].gpio_pin);
-    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"ds_name\":\"%s\", \"state\":%d, \"run for ms\":%d}", gpio_output_names[i][0], gpio_output_names[i][1], pinstate, gpio_outputs[i].run_for_ms);
+    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"ds_name\":\"gpio_%s\", \"state\":%d, \"run for ms\":%d}", gpio_output_names[i][0], gpio_output_names[i][1], pinstate, gpio_outputs[i].run_for_ms);
     TM_USART_Puts(USART2, buf);
     if (i == NUM_GPIO_OUTPUTS -1)
       TM_USART_Puts(USART2, "\r\n");
@@ -1145,7 +1175,7 @@ void print_nutrients(void){
   for (i=0; i<NUM_NUTRIENT_PUMPS; i++) {
 
     
-    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"content\":[{\"name\": \"ms_per_ml\", \"value\": %d}, {\"name\": \"ml_per_10l\", \"value\": %1.2f}]}", nutrient_pumps[i].name, nutrient_pumps[i].ms_per_ml, nutrient_pumps[i].ml_per_10l);
+    snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"%s\", \"content\":[{\"name\": \"ms_per_ml\", \"value\": %d}, {\"name\": \"ml_in_res\", \"value\": \"%1.2f\"}, {\"name\": \"ml_per_10l\", \"value\": %1.2f}]}", nutrient_pumps[i].name, nutrient_pumps[i].ms_per_ml, nutrient_pumps[i].ml_in_res, nutrient_pumps[i].ml_per_10l);
     TM_USART_Puts(USART2, buf);
     if (i == NUM_NUTRIENT_PUMPS -1)
       TM_USART_Puts(USART2, "\r\n");
@@ -1215,7 +1245,7 @@ void print_ph(void){
   memset(buf, 0, sizeof(buf));
   snprintf(buf, MAX_STR_LEN, "{\"name\": \"%s\", \"value\":%1.2f}\r\n", sensor_names[ADC_PH][0], adc_ph.value);
   TM_USART_Puts(USART2, buf);
-  snprintf(buf, MAX_STR_LEN, "{\"name\": \"pH Adjustment Settings\", \"content\": [{\"name\": \"min_ph\", \"value\": %1.2f},\r\n\t{\"name\": \"max_ph\", \"value\": %1.2f},\r\n\t{\"name\": \"ms_per_ml\", \"value\": %d},\r\n\t{\"name\": \"ml_per_ph_per_10l\", \"value\": %1.2f}\r\n]}\r\n", ph_setpoints.min_ph, ph_setpoints.max_ph, ph_setpoints.ms_per_ml, ph_setpoints.ml_per_ph_per_10l);
+  snprintf(buf, MAX_STR_LEN, "{\"name\": \"pH Adjustment Settings\", \"content\": [{\"name\": \"min_ph\", \"value\": %1.2f},\r\n\t{\"name\": \"max_ph\", \"value\": %1.2f},\r\n\t{\"name\": \"ms_per_ml\", \"value\": %d},\r\n\t{\"name\": \"ml_in_res\", \"value\": \"%1.2f\"},\r\n\t{\"name\": \"ml_per_ph_per_10l\", \"value\": %1.2f}\r\n]}\r\n", ph_setpoints.min_ph, ph_setpoints.max_ph, ph_setpoints.ms_per_ml, ph_setpoints.ml_in_res, ph_setpoints.ml_per_ph_per_10l);
   TM_USART_Puts(USART2, buf);
 }
 
@@ -1293,6 +1323,7 @@ void print_state(void){
 {\"ds_name\": \"drain_cycle_active\", \"name\": \"Drain Cycle active\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"adjusting_ph\", \"name\": \"Adjusting pH\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"stirring_nutrients\", \"name\": \"Stirring Nutrients\", \"state\":%d},\r\n\t\
+{\"ds_name\": \"adjusting_nutrients\", \"name\": \"Adjusting Nutrients\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"adding_nutrients\", \"name\": \"Adding Nutrients\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"nutrients_done\", \"name\": \"Nutrients done\", \"state\":%d},\r\n\t\
 {\"ds_name\": \"reservoir_alarm\", \"name\": \"Reservoir Alarm\", \"state\":%d},\r\n\t\
@@ -1308,6 +1339,7 @@ void print_state(void){
     global_state.drain_cycle_active,
     global_state.adjusting_ph,
     global_state.stirring_nutrients,
+    global_state.adjusting_nutrients,
     global_state.adding_nutrients,
     global_state.nutrients_done,
     global_state.reservoir_alarm,
@@ -1329,3 +1361,35 @@ void delay_ms(__IO uint32_t ms)
     while(ncount--);
   }
 }
+
+
+void read_co2_sensor(void){
+  static uint32_t next_time = 0;
+
+  if (!next_time) next_time = TM_Time;
+
+  if (TM_Time >= next_time){
+    // Send "get data" command; The answer is received by the interrupt handler and pushed onto the uart3_str array
+    uint8_t buf[9] = "\xff\x01\x86\x00\x00\x00\x00\x00\x79";
+
+    // We have to send the data this akward way because of the \0 characters inthe string
+    for (uint8_t i = 0; i<9; i++)
+      TM_USART_Putc(USART3, buf[i]);
+
+    next_time = TM_Time + 2500; // Read Sensor every 2.5s
+  }
+
+}
+
+void TM_USART3_ReceiveHandler(uint8_t c){
+  static uint8_t uart3_str[10] = {};
+  static uint8_t uart3_idx = 0;
+  if (c == 0xff) {
+    uart3_idx = 0;
+    memset(uart3_str, 0, 10);
+  } else if (uart3_idx >= 8) {
+    uart_co2.value = uart3_str[2] * 256 + uart3_str[3];
+  }
+  uart3_str[uart3_idx++] = c;
+}
+

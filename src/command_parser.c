@@ -65,6 +65,8 @@ void command_parser(void){
       global_state.drain_cycle_active = 1;
     } else if (strncmp(cmd[0], "drain", 5) == 0){
       global_state.reservoir_state = MANUAL_DRAIN;
+    } else if (strncmp(cmd[0], "nutes", 5) == 0){
+      global_state.adjusting_nutrients = (!global_state.adjusting_nutrients);
     } else if (strncmp(cmd[0], "reset", 5) == 0){
       host_cmd_reset(cmd[1], cmd[2]);
     } else if (strncmp(cmd[0], "idle", 4) == 0){
