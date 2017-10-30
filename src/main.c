@@ -524,6 +524,7 @@ void reservoir_level_ctrl(void){
         }
         print_state();
       } else {
+        global_state.stirring_nutrients = 0;
         global_state.reservoir_state = NORMAL_IDLE;
       }
       break;
