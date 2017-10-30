@@ -291,6 +291,7 @@ int main(void) {
         i2c_bus_reset();
         init_I2C1();
         bme280_init_result = init_bme280(&bme280_1); // this is not the driver internal init function!
+        read_bme280(&bme280_1, &bme280_temp.value, &bme280_humi.value, &bme280_press.value);
         TM_WATCHDOG_Reset();
 
         if (bme280_init_result != 0) {
