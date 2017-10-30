@@ -510,10 +510,10 @@ void reservoir_level_ctrl(void){
       break;
 
     case NORMAL_MIN:
-      global_state.stirring_nutrients = 1;
-      if (!stirring_time) stirring_time = TM_Time;
+      if ((global_state.reservoir_min) && (!global_state.reservoir_max) && (!global_state.reservoir_alarm)) {
+        global_state.stirring_nutrients = 1;
+        if (!stirring_time) stirring_time = TM_Time;
 
-      if ((global_state.reservoir_min) && (!global_state.reservoir_max) && (!global_state.reservoir_alarm)){
         if (TM_Time >= (stirring_time + misc_settings.nutrient_stirring_s * 1000)) {
           stirring_time = 0;
           global_state.stirring_nutrients = 0;
@@ -521,10 +521,10 @@ void reservoir_level_ctrl(void){
             global_state.adding_nutrients = 1;
           global_state.reservoir_state = NORMAL_FILLING;
           snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir topping up started\", \"time\": \"%s\"}\r\n", global_state.datestring);
-        } else {
-          global_state.reservoir_state = NORMAL_IDLE;
         }
         print_state();
+      } else {
+        global_state.reservoir_state = NORMAL_IDLE;
       }
       break;
 
