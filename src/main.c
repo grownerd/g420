@@ -322,7 +322,7 @@ int main(void) {
     }
 
     // Execute Commands
-    command_parser();
+    //command_parser(); // This is done via interrupt now
     light_scheduler();
     res_temp_ctrl();
     sewage_pump_ctrl();

@@ -11,7 +11,7 @@
  */
 
 
-void command_parser(void);
+void command_parser(char * command);
 
 #endif
 

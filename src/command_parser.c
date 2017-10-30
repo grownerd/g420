@@ -37,53 +37,66 @@ void set_coolant(char * val);
 void set_exhaust(char * val);
 void set_misc(char * val);
 
-void command_parser(void){
 
-  char command[256];
+
+void TM_USART2_ReceiveHandler(uint8_t c){
+  static uint8_t uart2_str[MAX_STR_LEN] = {};
+  static uint8_t uart2_idx = 0;
+
+  uart2_str[uart2_idx++] = c;
+  // This would have been nice to have, but it is remarkably tricky to get the other side to ignore its own output
+  //TM_USART_Putc(USART2, c);
+
+  if ((c == '\n') || (c == '\r')) {
+    uart2_str[uart2_idx++] = '\0';
+    uart2_idx = 0;
+    command_parser(uart2_str);
+    memset(uart2_str, 0, 10);
+  }
+}
+
+
+void command_parser(char * command){
+
   char cmd[3][64];
   uint8_t cmd_counter = 0, j = 0;
 
-  for (int i=0; i< sizeof(command); i++)
-    command[i] = '\0';
-
-  if (TM_USART_Gets(USART2, command, sizeof(command))) {
-    for (int i=0; i < strlen(command); i++){
-      char t = command[i];
-      if (t == ' ' && cmd_counter < 2) {
-        cmd[cmd_counter][j] = '\0';
-        cmd[cmd_counter++];
-        j = 0;
-      } else {
-        cmd[cmd_counter][j++] = t;
-      }
+  for (int i=0; i < strlen(command); i++){
+    char t = command[i];
+    if (t == ' ' && cmd_counter < 2) {
+      cmd[cmd_counter][j] = '\0';
+      cmd[cmd_counter++];
+      j = 0;
+    } else {
+      cmd[cmd_counter][j++] = t;
     }
-    cmd[cmd_counter][j] = '\0';
+  }
+  cmd[cmd_counter][j] = '\0';
 
-    if (strncmp(cmd[0], "release", 7) == 0){
-      emergency_stop(1);
-    } else if (strncmp(cmd[0], "cycle", 5) == 0){
-      global_state.drain_cycle_active = 1;
-    } else if (strncmp(cmd[0], "drain", 5) == 0){
-      global_state.reservoir_state = MANUAL_DRAIN;
-    } else if (strncmp(cmd[0], "nutes", 5) == 0){
-      global_state.adjusting_nutrients = (!global_state.adjusting_nutrients);
-    } else if (strncmp(cmd[0], "reset", 5) == 0){
-      host_cmd_reset(cmd[1], cmd[2]);
-    } else if (strncmp(cmd[0], "idle", 4) == 0){
-      global_state.reservoir_state = NORMAL_IDLE;
-    } else if (strncmp(cmd[0], "fill", 4) == 0){
-      global_state.reservoir_state = MANUAL_FILL;
-    } else if (strncmp(cmd[0], "save", 4) == 0){
-      save_data_to_flash();
-    } else if (strncmp(cmd[0], "load", 4) == 0){
-      read_flash();
-    } else if (strncmp(cmd[0], "stop", 4) == 0){
-      emergency_stop(0);
-    } else if (strncmp(cmd[0], "get", 3) == 0){
-      host_cmd_get(cmd[1]);
-    }else 	if(strncmp(cmd[0], "set", 3) == 0){
-      host_cmd_set(cmd[1], cmd[2]);
-    }
+  if (strncmp(cmd[0], "release", 7) == 0){
+    emergency_stop(1);
+  } else if (strncmp(cmd[0], "cycle", 5) == 0){
+    global_state.drain_cycle_active = 1;
+  } else if (strncmp(cmd[0], "drain", 5) == 0){
+    global_state.reservoir_state = MANUAL_DRAIN;
+  } else if (strncmp(cmd[0], "nutes", 5) == 0){
+    global_state.adjusting_nutrients = (!global_state.adjusting_nutrients);
+  } else if (strncmp(cmd[0], "reset", 5) == 0){
+    host_cmd_reset(cmd[1], cmd[2]);
+  } else if (strncmp(cmd[0], "idle", 4) == 0){
+    global_state.reservoir_state = NORMAL_IDLE;
+  } else if (strncmp(cmd[0], "fill", 4) == 0){
+    global_state.reservoir_state = MANUAL_FILL;
+  } else if (strncmp(cmd[0], "save", 4) == 0){
+    save_data_to_flash();
+  } else if (strncmp(cmd[0], "load", 4) == 0){
+    read_flash();
+  } else if (strncmp(cmd[0], "stop", 4) == 0){
+    emergency_stop(0);
+  } else if (strncmp(cmd[0], "get", 3) == 0){
+    host_cmd_get(cmd[1]);
+  }else 	if(strncmp(cmd[0], "set", 3) == 0){
+    host_cmd_set(cmd[1], cmd[2]);
   }
 }
 
@@ -95,10 +108,6 @@ void host_cmd_get(char * item) {
   else if (strncmp(item, "capsense", 8) == 0)
   {
     print_capsense();
-  }
-  else if (strncmp(item, "settings", 8) == 0)
-  {
-    print_settings();
   }
   else if (strncmp(item, "coolant", 7) == 0)
   {
@@ -115,6 +124,10 @@ void host_cmd_get(char * item) {
   else if (strncmp(item, "errors", 5) == 0)
   {
     print_errors();
+  }
+  else if (strncmp(item, "misc", 4) == 0)
+  {
+    print_settings();
   }
   else if (strncmp(item, "light", 5) == 0)
   {

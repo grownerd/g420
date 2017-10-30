@@ -34,6 +34,8 @@
 //#define TM_DELAY_TIM      TIM2
 //#define TM_DELAY_TIM_IRQ    TIM2_IRQn
 //#define TM_DELAY_TIM_IRQ_HANDLER  TIM2_IRQHandler
+
+#define TM_USART2_USE_CUSTOM_IRQ
 #define TM_USART3_USE_CUSTOM_IRQ
 
 #endif
