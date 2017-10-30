@@ -354,7 +354,10 @@ void set_misc(char * val) {
   }
   part[part_counter][j] = '\0';
 
-  if (strncmp(part[0], "nutrient_stirring_s", 19) == 0) {
+  if (strncmp(part[0], "i2c_max_reading_age_s", 21) == 0) {
+    misc_settings.i2c_max_reading_age_s = atoi(part[1]);
+
+  } else if (strncmp(part[0], "nutrient_stirring_s", 19) == 0) {
     misc_settings.nutrient_stirring_s = atoi(part[1]);
 
   } else if (strncmp(part[0], "res_settling_time_s", 19) == 0) {

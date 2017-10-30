@@ -207,7 +207,6 @@ typedef struct misc_settings {
   uint8_t pad[3];
 
   uint32_t i2c_timeout;
-  uint32_t i2c_max_restarts;
   uint32_t i2c_max_reading_age_s;
   uint32_t flow_sensor_lag;
 }misc_settings_struct_t;

@@ -382,8 +382,8 @@ void set_defaults(void){
   misc_settings.nutrient_factor = 0.5f;
   misc_settings.flow_sensor_lag = 3000;
   misc_settings.i2c_max_reading_age_s = 5;
-  misc_settings.i2c_timeout = 10;
   misc_settings.i2c_break_enabled = 1;
+  misc_settings.i2c_timeout = 10;
   misc_settings.fill_to_alarm_level = 0;
   misc_settings.ec_k = 1.316f;
   misc_settings.ec_r1_ohms = 470;
@@ -1285,6 +1285,7 @@ void print_settings(void){
 {\"name\": \"res_settling_time_s\", \"value\": %d},\r\n\t\
 {\"name\": \"sewage_pump_pause_s\", \"value\": %d},\r\n\t\
 {\"name\": \"sewage_pump_run_s\", \"value\": %d},\r\n\t\
+{\"name\": \"i2c_max_reading_age_s\", \"value\": %d},\r\n\t\
 {\"name\": \"fill_to_alarm_level\", \"value\": %d}]\r\n\
 }\r\n",
     misc_settings.res_liters_min,
@@ -1306,6 +1307,7 @@ void print_settings(void){
     misc_settings.res_settling_time_s,
     misc_settings.sewage_pump_pause_s,
     misc_settings.sewage_pump_run_s,
+    misc_settings.i2c_max_reading_age_s,
     misc_settings.fill_to_alarm_level
   );
   TM_USART_Puts(USART2, buf);
