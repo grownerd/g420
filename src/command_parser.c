@@ -109,6 +109,14 @@ void host_cmd_get(char * item) {
   {
     print_capsense();
   }
+  else if (strncmp(item, "gpio_out", 8) == 0)
+  {
+    print_gpio_outputs();
+  }
+  else if (strncmp(item, "gpio_in", 7) == 0)
+  {
+    print_irqs();
+  }
   else if (strncmp(item, "coolant", 7) == 0)
   {
     print_coolant();
@@ -125,10 +133,6 @@ void host_cmd_get(char * item) {
   {
     print_errors();
   }
-  else if (strncmp(item, "misc", 4) == 0)
-  {
-    print_settings();
-  }
   else if (strncmp(item, "light", 5) == 0)
   {
     print_light();
@@ -141,17 +145,13 @@ void host_cmd_get(char * item) {
   {
     print_pwmin(PWMIN_RES_DRAIN, PWMIN1_Data.Frequency);
   }
-  else if (strncmp(item, "irqs", 4) == 0)
+  else if (strncmp(item, "misc", 4) == 0)
   {
-    print_irqs();
+    print_settings();
   }
   else if (strncmp(item, "env", 3) == 0)
   {
     print_env();
-  }
-  else if (strncmp(item, "gpio", 3) == 0)
-  {
-    print_gpio_outputs();
   }
   else if (strncmp(item, "rtc", 3) == 0)
   {
