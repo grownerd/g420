@@ -1292,6 +1292,7 @@ void print_settings(void){
 {\"name\": \"sewage_pump_pause_s\", \"value\": %d},\r\n\t\
 {\"name\": \"sewage_pump_run_s\", \"value\": %d},\r\n\t\
 {\"name\": \"i2c_max_reading_age_ms\", \"value\": %d},\r\n\t\
+{\"name\": \"i2c_timeout\", \"value\": %d},\r\n\t\
 {\"name\": \"fill_to_alarm_level\", \"value\": %d}]\r\n\
 }\r\n",
     misc_settings.res_liters_min,
@@ -1314,6 +1315,7 @@ void print_settings(void){
     misc_settings.sewage_pump_pause_s,
     misc_settings.sewage_pump_run_s,
     misc_settings.i2c_max_reading_age_ms,
+    misc_settings.i2c_timeout,
     misc_settings.fill_to_alarm_level
   );
   TM_USART_Puts(USART2, buf);

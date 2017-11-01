@@ -94,7 +94,7 @@ void init_I2C1(void) {
   GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_I2C1);
   GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_I2C1);
   
-  I2C_InitStruct.I2C_ClockSpeed = 10000;
+  I2C_InitStruct.I2C_ClockSpeed = 100000;
   I2C_InitStruct.I2C_Mode = I2C_Mode_I2C;
   I2C_InitStruct.I2C_DutyCycle = I2C_DutyCycle_2;
   I2C_InitStruct.I2C_OwnAddress1 = 0x00;

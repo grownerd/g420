@@ -393,6 +393,9 @@ void set_misc(char * val) {
   } else if (strncmp(part[0], "ec_temp_coef", 12) == 0) {
     misc_settings.ec_temp_coef = atof(part[1]);
 
+  } else if (strncmp(part[0], "i2c_timeout", 11) == 0) {
+    misc_settings.i2c_timeout = atoi(part[1]);
+
   } else if (strncmp(part[0], "ec_ra_ohms", 9) == 0) {
     misc_settings.ec_ra_ohms = atoi(part[1]);
 
