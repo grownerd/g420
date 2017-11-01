@@ -191,7 +191,7 @@ int main(void) {
   // this can take some time, so do it before the watchdog init
   onewire_init();
 
-  if (TM_WATCHDOG_Init(TM_WATCHDOG_Timeout_4s)) {
+  if (TM_WATCHDOG_Init(TM_WATCHDOG_Timeout_8s)) {
   //if (1){
     //System was reset by watchdog
     TM_DISCO_LedOn(LED_RED);
