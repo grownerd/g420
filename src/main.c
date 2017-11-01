@@ -295,15 +295,21 @@ int main(void) {
         TM_WATCHDOG_Reset();
 
         if (bme280_init_result != 0) {
+          uint32_t reading_age = (TM_Time - global_state.i2c_last_good_reading);
+
           snprintf(buf, MAX_STR_LEN, "{\"event\": \"BME280 Initialization Error!\", \"time\": \"%s\"}\r\n", global_state.datestring);
           TM_USART_Puts(USART2, buf);
 
-          uint32_t reading_age = (TM_Time - global_state.i2c_last_good_reading);
-          if (reading_age > global_state.i2c_max_reading_age_s)
-            global_state.i2c_max_reading_age_s = reading_age;
+          // update global state for error reporting
+          if (reading_age > global_state.i2c_max_reading_age_ms) {
+            global_state.i2c_max_reading_age_ms = reading_age;
+            snprintf(buf, MAX_STR_LEN, "{\"info\": \"BME280 Reading Age\", \"value\": \"%d\"}\r\n", global_state.i2c_max_reading_age_ms);
+            TM_USART_Puts(USART2, buf);
+          }
+
 
           // force a reboot if the reading gets too stale and there is nothing else going on
-          if ((reading_age > misc_settings.i2c_max_reading_age_s)
+          if ((reading_age > misc_settings.i2c_max_reading_age_ms)
             && (!global_state.adjusting_ph)
             && (!global_state.adding_nutrients)
             && (!global_state.drain_cycle_active)
@@ -381,9 +387,9 @@ void set_defaults(void){
   misc_settings.res_liters_alarm = 15.0f;
   misc_settings.nutrient_factor = 0.5f;
   misc_settings.flow_sensor_lag = 3000;
-  misc_settings.i2c_max_reading_age_s = 5;
+  misc_settings.i2c_max_reading_age_ms = 15000;
   misc_settings.i2c_break_enabled = 1;
-  misc_settings.i2c_timeout = 10;
+  misc_settings.i2c_timeout = 10; // setting this to bigger values will cause i2c to stop working entirely!
   misc_settings.fill_to_alarm_level = 0;
   misc_settings.ec_k = 1.316f;
   misc_settings.ec_r1_ohms = 470;
@@ -1130,7 +1136,7 @@ void print_errors(void){
 
   snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"I2C Resets\", \"ds_name\":\"i2c_resets\", \"count\":%d},\r\n", global_state.i2c_restarts);
   TM_USART_Puts(USART2, buf);
-  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"I2C Reading Age\", \"ds_name\":\"i2c_age\", \"seconds\":%d},\r\n", global_state.i2c_max_reading_age_s);
+  snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"I2C Reading Age\", \"ds_name\":\"i2c_age\", \"seconds\":%d},\r\n", global_state.i2c_max_reading_age_ms);
   TM_USART_Puts(USART2, buf);
   snprintf(buf, MAX_STR_LEN, "\t{\"name\":\"Restarted by Watchdog\", \"ds_name\":\"restarted_by_watchdog\", \"value\":\"%s\"}\r\n", watchdog_barked ? "yes" : "no");
   TM_USART_Puts(USART2, buf);
@@ -1285,7 +1291,7 @@ void print_settings(void){
 {\"name\": \"res_settling_time_s\", \"value\": %d},\r\n\t\
 {\"name\": \"sewage_pump_pause_s\", \"value\": %d},\r\n\t\
 {\"name\": \"sewage_pump_run_s\", \"value\": %d},\r\n\t\
-{\"name\": \"i2c_max_reading_age_s\", \"value\": %d},\r\n\t\
+{\"name\": \"i2c_max_reading_age_ms\", \"value\": %d},\r\n\t\
 {\"name\": \"fill_to_alarm_level\", \"value\": %d}]\r\n\
 }\r\n",
     misc_settings.res_liters_min,
@@ -1307,7 +1313,7 @@ void print_settings(void){
     misc_settings.res_settling_time_s,
     misc_settings.sewage_pump_pause_s,
     misc_settings.sewage_pump_run_s,
-    misc_settings.i2c_max_reading_age_s,
+    misc_settings.i2c_max_reading_age_ms,
     misc_settings.fill_to_alarm_level
   );
   TM_USART_Puts(USART2, buf);

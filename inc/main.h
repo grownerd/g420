@@ -207,7 +207,7 @@ typedef struct misc_settings {
   uint8_t pad[3];
 
   uint32_t i2c_timeout;
-  uint32_t i2c_max_reading_age_s;
+  uint32_t i2c_max_reading_age_ms;
   uint32_t flow_sensor_lag;
 }misc_settings_struct_t;
 
@@ -237,7 +237,7 @@ typedef struct global_state {
   uint32_t i2c_errors;
   uint32_t i2c_restarts;
   uint32_t i2c_last_good_reading;
-  uint32_t i2c_max_reading_age_s;
+  uint32_t i2c_max_reading_age_ms;
   res_states_t reservoir_state;
   char* datestring;
 }global_state_struct_t;
