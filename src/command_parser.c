@@ -290,7 +290,7 @@ void set_nutrients(char * val) {
 
 
 void set_ph(char * val) {
-  char part[2][16];
+  char part[2][32];
 
   uint8_t part_counter = 0;
   uint8_t j = 0;
@@ -310,7 +310,7 @@ void set_ph(char * val) {
   }
   part[part_counter][j] = '\0';
 
-  if (strncmp(part[0], "ml_per_ph_10l", 13) == 0) {
+  if (strncmp(part[0], "ml_per_ph_per_10l", 17) == 0) {
       ph_setpoints.ml_per_ph_per_10l = atof(part[1]);
 
   } else if (strncmp(part[0], "ml_in_res", 9) == 0) {

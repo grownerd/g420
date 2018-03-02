@@ -567,12 +567,12 @@ void reservoir_level_ctrl(void){
       break;
 
     case NORMAL_MAX:
-      //if (global_state.nutrients_done){
+      if (global_state.nutrients_done){
         global_state.nutrients_done = 0;
         global_state.reservoir_state = NORMAL_IDLE;
-      //} else {
-        //global_state.reservoir_state = NORMAL_NUTRIENTS;
-      //}
+      } else {
+        global_state.reservoir_state = NORMAL_NUTRIENTS;
+      }
       snprintf(buf, MAX_STR_LEN, "{\"event\": \"Reservoir topping up completed\", \"time\": \"%s\"}\r\n", global_state.datestring);
       gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
       print_state();
@@ -659,7 +659,8 @@ void nutrient_pump_ctrl(void){
       TM_USART_Puts(USART2, buf);
     }
 
-  } else if ((global_state.adding_nutrients) || (global_state.adjusting_nutrients)) {
+  //} else if ((global_state.adding_nutrients) || (global_state.adjusting_nutrients)) {
+  } else if (global_state.adding_nutrients) {
     if (gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state == 1){
       gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].desired_state = 0;
       gpio_outputs[GPIO_OUTPUT_STIRRER_MOTORS].run_for_ms = 0;
