@@ -37,37 +37,18 @@ AFLAGS	= $(MCFLAGS)
 
 SRC = ./src/main.c \
 	./src/flash.c \
-	./src/i2c.c \
 	./src/rtc.c \
 	./src/gpio.c \
-	./src/adc.c \
-	./src/onewire.c \
 	./src/command_parser.c \
 	./src/system_stm32f4xx.c \
-	./drivers/BME280_driver/bme280.c \
-	./drivers/BME280_driver/bme280_support.c \
 	./drivers/tm/tm_stm32f4_delay.c \
 	./drivers/tm/tm_stm32f4_usart.c \
-	./drivers/tm/tm_stm32f4_ds18b20.c \
 	./drivers/tm/tm_stm32f4_disco.c \
 	./drivers/tm/tm_stm32f4_watchdog.c \
-	./drivers/tm/tm_stm32f4_adc.c \
 	./drivers/tm/tm_stm32f4_rtc.c \
 	./drivers/tm/tm_stm32f4_gpio.c \
-	./drivers/tm/tm_stm32f4_onewire.c \
 	./drivers/tm/tm_stm32f4_timer_properties.c \
-	./drivers/tm/tm_stm32f4_pwm.c \
-	./drivers/tm/tm_stm32f4_pwmin.c \
-	./drivers/tm/tm_stm32f4_exti.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/misc.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_adc.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_can.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_crc.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_cryp_aes.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_cryp.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_cryp_des.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_cryp_tdes.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_dac.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_dbgmcu.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_dcmi.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_dma.c \
@@ -75,9 +56,6 @@ SRC = ./src/main.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_flash.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_fsmc.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_gpio.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_hash.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_hash_md5.c \
-	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_hash_sha1.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_i2c.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_iwdg.c \
 	$(LIBPATH)/Libraries/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_pwr.c \
