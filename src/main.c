@@ -143,6 +143,7 @@ void main(void) {
   TM_DISCO_LedOn(LED_BLUE);
 
   TM_RTC_Init(TM_RTC_ClockSource_Internal); // This is actually the HSE, not the LSI!
+  TM_RTC_Interrupts(TM_RTC_Int_1s);
 
   TM_USART_Init(USART2, TM_USART_PinsPack_1, 115200);
   TM_USART_Puts(USART2, "{\"event\": \"System Startup\"}\r\n");
