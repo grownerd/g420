@@ -6,7 +6,7 @@
 #define MAX_STR_LEN 2048
 #define V_IN 3.3F
 #define FLASH_SIZE 2048
-#define MAX_TIMER_EVENTS 256
+#define MAX_TIMER_EVENTS 100
 
 
 extern char datestring[DATESTR_LEN];

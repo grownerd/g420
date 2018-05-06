@@ -110,6 +110,8 @@ void gpio_scheduler(void){
         } 
 
       }
+      // If a timer event turned on the GPIO pin, break, so it does not get turned off again
+      if (desired_state == 1) break;
     }
   }
 

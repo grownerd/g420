@@ -175,7 +175,7 @@ void save_data_to_flash(void) {
 
 
   data_p = (uint32_t*)&timer_events;
-  for (i=0; i<sizeof(timer_events)/4; i++) {
+  for (i=0; i < sizeof(timer_events)/4; i++) {
     flash_status = FLASH_ProgramWord((uint32_t)address, (uint32_t)*(data_p+i));
     address += 4;
   }

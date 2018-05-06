@@ -89,7 +89,7 @@ burn:
 	$(STLINK)/st-flash write $(BINARYOUT) 0x8000000
 
 reset: 
-	echo 'reset halt' | nc growpi 4444
+	echo 'reset halt' | nc debugpi 4444
 
 clean:
 	rm -f Startup.lst  $(TARGET)  $(TARGET).lst $(OBJ) $(AUTOGEN)  $(TARGET).out  $(TARGET).hex  $(TARGET).map \
