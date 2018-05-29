@@ -67,13 +67,14 @@ void init_timer_events(void){
   for (i = 0; i < MAX_TIMER_EVENTS; i++) {
     timer_events[i].on_time = 0;
     timer_events[i].off_time = 0;
+    timer_events[i].desired_state = 0;
+    timer_events[i].gpio_num = 0;
   }
 }
 
 
 void gpio_scheduler(void){
   uint32_t i = 0;
-  uint8_t desired_state = 0;
   uint32_t time = 0;
 
   static uint32_t ts = 0;
@@ -89,49 +90,51 @@ void gpio_scheduler(void){
     // only act on non-empty slots
     if (!slot_is_empty(i)) {
 
+      uint32_t gpio_num = timer_events[i].gpio_num;
+
+      timer_events[i].desired_state = 0;
+
       // Event starts and ends before midnight
       if (timer_events[i].on_time < timer_events[i].off_time) {
         if (time >= timer_events[i].on_time) {
-          desired_state = 1;
+          timer_events[i].desired_state = 1;
         } 
 
         if (time >= timer_events[i].off_time) {
-          desired_state = 0;
+          timer_events[i].desired_state = 0;
         }
 
       // Event starts before, but ends after midnight
       } else {
         if (time >= timer_events[i].off_time) {
-          desired_state = 0;
+          timer_events[i].desired_state = 0;
         }
 
         if (time >= timer_events[i].on_time) {
-          desired_state = 1;
+          timer_events[i].desired_state = 1;
         } 
 
       }
-      // If a timer event turned on the GPIO pin, break, so it does not get turned off again
-      if (desired_state == 1) break;
-    }
-  }
 
-  if (TM_DISCO_ButtonPressed())
-    desired_state = 1;
+    if (TM_DISCO_ButtonPressed())
+      timer_events[0].desired_state = 1;
 
-  
-  if (GPIO_ReadInputDataBit(gpio_outputs[GPIO_OUTPUT_FEED_PUMP].gpio_port, gpio_outputs[GPIO_OUTPUT_FEED_PUMP].gpio_pin) != desired_state){
+    
+    if (GPIO_ReadInputDataBit(gpio_outputs[gpio_num].gpio_port, gpio_outputs[gpio_num].gpio_pin) != timer_events[i].desired_state){
 
-    GPIO_WriteBit(gpio_outputs[GPIO_OUTPUT_FEED_PUMP].gpio_port, gpio_outputs[GPIO_OUTPUT_FEED_PUMP].gpio_pin, desired_state);
+      GPIO_WriteBit(gpio_outputs[gpio_num].gpio_port, gpio_outputs[gpio_num].gpio_pin, timer_events[i].desired_state);
 
-    snprintf(buf, MAX_STR_LEN, "{\"event\": \"Output changed\", \"value\": \"%d\", %s}\r\n", desired_state, datestring);
-    TM_USART_Puts(USART2, buf);
-
-    if (desired_state) {
-      ts = Time.unix;
-    } else {
-      snprintf(buf, MAX_STR_LEN, "{\"event\": \"Seconds elapsed\", \"value\": \"%d\", %s}\r\n", Time.unix - ts, datestring);
+      snprintf(buf, MAX_STR_LEN, "{\"event\": \"Output changed\", \"gpio\": \"%d\", \"value\": \"%d\", %s}\r\n", gpio_num, timer_events[i].desired_state, datestring);
       TM_USART_Puts(USART2, buf);
-      
+
+      if (timer_events[i].desired_state) {
+        ts = Time.unix;
+      } else {
+        snprintf(buf, MAX_STR_LEN, "{\"event\": \"Seconds elapsed\", \"value\": \"%d\", %s}\r\n", Time.unix - ts, datestring);
+        TM_USART_Puts(USART2, buf);
+        
+      }
+    }
     }
   }
 }

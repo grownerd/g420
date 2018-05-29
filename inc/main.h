@@ -14,6 +14,8 @@ extern char datestring[DATESTR_LEN];
 typedef struct timer_event {
   uint32_t on_time;
   uint32_t off_time;
+  uint32_t desired_state;
+  uint32_t gpio_num;
 } timer_event_struct_t;
 
 timer_event_struct_t timer_events[MAX_TIMER_EVENTS];

@@ -108,13 +108,13 @@ void set_rtc(char * timestring) {
 }
 
 
-void set_timer(char * on_to_off){
-  char parts[6][3];
+void set_timer(char * args){
+  char parts[7][3];
   uint8_t part_counter = 0, i = 0, j = 0;
-  uint32_t on_time = 0, off_time = 0, timer_index = 0;
+  uint32_t on_time = 0, off_time = 0, timer_index = 0, gpio_num = 0;
 
-  for (i=0; i < strlen(on_to_off); i++){
-    char t = on_to_off[i];
+  for (i=0; i < strlen(args); i++){
+    char t = args[i];
     if (((t == ' ' ) || (t == '-' ) || (t == ':' )) && (part_counter < 6)) {
       parts[part_counter][j] = '\0';
       parts[part_counter++];
@@ -127,11 +127,13 @@ void set_timer(char * on_to_off){
 
   on_time = (atoi(parts[0]) * 3600) + (atoi(parts[1]) * 60) + atoi(parts[2]);
   off_time = (atoi(parts[3]) * 3600) + (atoi(parts[4]) * 60) + atoi(parts[5]);
+  gpio_num = atoi(parts[6]);
 
   for (i = 0; i < MAX_TIMER_EVENTS; i++) {
     if (slot_is_empty(i)){
       timer_events[i].on_time = on_time;
       timer_events[i].off_time = off_time;
+      timer_events[i].gpio_num = gpio_num;
       break;
     }
   }
