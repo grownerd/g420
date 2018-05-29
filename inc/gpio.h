@@ -16,7 +16,8 @@
 #define GPIO_INPUT_NC_9 9
 #define GPIO_INPUT_NC_14 14
 
-#define GPIO_OUTPUT_FEED_PUMP 0
+#define GPIO_OUTPUT_FILL_PUMP 0
+#define GPIO_OUTPUT_DRAIN_PUMP 1
 
 #define OFF 0
 #define ON 1

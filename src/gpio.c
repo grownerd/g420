@@ -25,11 +25,15 @@ void gpio_init() {
 
   GPIO_InitTypeDef GPIO_InitStruct;
   
-
-  gpio_outputs[GPIO_OUTPUT_FEED_PUMP].gpio_port = GPIOE;
-  gpio_outputs[GPIO_OUTPUT_FEED_PUMP].gpio_pin = GPIO_Pin_9;
-  gpio_outputs[GPIO_OUTPUT_FEED_PUMP].desired_state = 0;
-  gpio_outputs[GPIO_OUTPUT_FEED_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_FILL_PUMP].gpio_port = GPIOE;
+  gpio_outputs[GPIO_OUTPUT_FILL_PUMP].gpio_pin = GPIO_Pin_9;
+  gpio_outputs[GPIO_OUTPUT_FILL_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_FILL_PUMP].run_for_ms = 0;
+  gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].gpio_port = GPIOE;
+  gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].gpio_pin = GPIO_Pin_14;
+  gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].desired_state = 0;
+  gpio_outputs[GPIO_OUTPUT_DRAIN_PUMP].run_for_ms = 0;
+ 
 
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
   
