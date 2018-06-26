@@ -167,8 +167,9 @@ void print_timers(void) {
 
     // only act on non-empty slots
     if (!slot_is_empty(i)) {
-      snprintf(buf, MAX_STR_LEN, "{\"timer index\": \"%03d\", \"on\": \"%02d:%02d:%02d\",  \"off\": \"%02d:%02d:%02d\"}\r\n",
+      snprintf(buf, MAX_STR_LEN, "{\"timer index\": \"%03d\", \"gpio_num\": \"%02d\", \"on\": \"%02d:%02d:%02d\",  \"off\": \"%02d:%02d:%02d\"}\r\n",
         i,
+        timer_events[i].gpio_num,
         timer_events[i].on_time / 3600,
         timer_events[i].on_time % 3600 / 60,
         timer_events[i].on_time % 60,
